@@ -1,8 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_ASSETS, MOCK_HISTORY } from "@/lib/mockData";
-import { AssetType } from "@/types";
+import { Asset, AssetType } from "@/types";
 import { cn } from "@/lib/utils";
 import {
   Area,
@@ -19,13 +19,56 @@ import {
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
 export default function Dashboard() {
+  const [timeRange, setTimeRange] = useState("1Y");
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [historyData, setHistoryData] = useState<{ date: string; value: number }[]>([]);
+  const [returnPct, setReturnPct] = useState("+0.0%");
+  const [returnVal, setReturnVal] = useState("+$0.00");
+  const [loading, setLoading] = useState(true);
+
+  // Fetch Assets
+  useEffect(() => {
+    const fetchAssets = async () => {
+      try {
+        console.log("Fetching assets...");
+        const res = await fetch('/api/assets');
+        console.log("Assets response status:", res.status);
+        const data = await res.json();
+        console.log("Fetched assets data:", data);
+        setAssets(data);
+      } catch (error) {
+        console.error("Failed to fetch assets:", error);
+      }
+    };
+    fetchAssets();
+  }, []);
+
+  // Fetch History based on Time Range
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/history?range=${timeRange}`);
+        const data = await res.json();
+        setHistoryData(data.historyData);
+        setReturnPct(data.returnPct);
+        setReturnVal(data.returnVal);
+      } catch (error) {
+        console.error("Failed to fetch history:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistory();
+  }, [timeRange]);
+
   // Calculate totals
-  const totalBalance = MOCK_ASSETS.reduce((acc, asset) => {
+  const totalBalance = assets.reduce((acc, asset) => {
     if (asset.type === "BANK") return acc + asset.balance;
     return acc + (asset.totalValue || 0);
   }, 0);
 
-  const assetsByType = MOCK_ASSETS.reduce((acc, asset) => {
+  const assetsByType = assets.reduce((acc, asset) => {
     const value = asset.type === "BANK" ? asset.balance : asset.totalValue || 0;
     acc[asset.type] = (acc[asset.type] || 0) + value;
     return acc;
@@ -35,6 +78,9 @@ export default function Dashboard() {
     name,
     value,
   }));
+
+  console.log("Render: assets length:", assets.length);
+  console.log("Render: totalBalance:", totalBalance);
 
   return (
     <div className="p-8 space-y-8">
@@ -75,9 +121,10 @@ export default function Dashboard() {
                   {['1W', '1M', '1Y', '3Y', '5Y'].map((period) => (
                     <button
                       key={period}
+                      onClick={() => setTimeRange(period)}
                       className={cn(
                         "px-3 py-1 text-xs font-medium rounded-md transition-all",
-                        period === '1Y'
+                        timeRange === period
                           ? "bg-background text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                       )}
@@ -89,10 +136,10 @@ export default function Dashboard() {
               </div>
               <div className="flex flex-col items-end justify-center h-full pb-2">
                 <div className="text-5xl font-bold text-green-500 tracking-tight">
-                  +12.5%
+                  {returnPct}
                 </div>
                 <div className="text-sm font-medium text-muted-foreground mt-1">
-                  +$156,250.00
+                  {returnVal}
                 </div>
               </div>
             </div>
@@ -108,28 +155,34 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Loading allocation...
+                </div>
+              )}
             </div>
             <div className="mt-4 space-y-3">
               {pieData.map((entry, index) => (
@@ -156,39 +209,45 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="pl-2">
             <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={MOCK_HISTORY}>
-                  <defs>
-                    <linearGradient id="colorValueMain" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="date"
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `$${value}`}
-                  />
-                  <Tooltip />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorValueMain)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {historyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={historyData}>
+                    <defs>
+                      <linearGradient id="colorValueMain" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      stroke="#888888"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="#888888"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `$${value}`}
+                    />
+                    <Tooltip />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorValueMain)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Loading trend data...
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -202,7 +261,10 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {MOCK_ASSETS.filter((a) => a.type === "BANK").map((asset) => (
+              <div className="text-xs text-muted-foreground">
+                Debug: Total Assets: {assets.length}, Banks: {assets.filter(a => a.type === "BANK").length}
+              </div>
+              {assets.filter((a) => a.type === "BANK").map((asset) => (
                 <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">
@@ -228,7 +290,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {MOCK_ASSETS.filter((a) => a.type === "STOCK").map((asset: any) => (
+              {assets.filter((a) => a.type === "STOCK").map((asset: any) => (
                 <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">
@@ -258,7 +320,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {MOCK_ASSETS.filter((a) => a.type === "CRYPTO").map((asset: any) => (
+              {assets.filter((a) => a.type === "CRYPTO").map((asset: any) => (
                 <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">
