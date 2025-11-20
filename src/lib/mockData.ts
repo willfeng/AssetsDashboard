@@ -1,0 +1,73 @@
+import { Asset, HistoricalDataPoint } from "@/types";
+
+export const MOCK_ASSETS: Asset[] = [
+    {
+        id: "bank-1",
+        type: "BANK",
+        name: "Chase Checking",
+        balance: 12500.50,
+        currency: "USD",
+    },
+    {
+        id: "bank-2",
+        type: "BANK",
+        name: "HSBC Savings",
+        balance: 50000.00,
+        currency: "HKD",
+    },
+    {
+        id: "stock-1",
+        type: "STOCK",
+        symbol: "AAPL",
+        name: "Apple Inc.",
+        quantity: 50,
+        currentPrice: 185.50,
+        totalValue: 9275.00,
+        change24h: 1.2,
+    },
+    {
+        id: "stock-2",
+        type: "STOCK",
+        symbol: "TSLA",
+        name: "Tesla, Inc.",
+        quantity: 20,
+        currentPrice: 240.00,
+        totalValue: 4800.00,
+        change24h: -2.5,
+    },
+    {
+        id: "crypto-1",
+        type: "CRYPTO",
+        symbol: "BTC",
+        name: "Bitcoin",
+        quantity: 0.5,
+        currentPrice: 42000.00,
+        totalValue: 21000.00,
+        change24h: 3.5,
+    },
+    {
+        id: "crypto-2",
+        type: "CRYPTO",
+        symbol: "ETH",
+        name: "Ethereum",
+        quantity: 5,
+        currentPrice: 2200.00,
+        totalValue: 11000.00,
+        change24h: 0.8,
+    },
+];
+
+export const MOCK_HISTORY: HistoricalDataPoint[] = [
+    { date: "2023-01", value: 45000 },
+    { date: "2023-02", value: 47000 },
+    { date: "2023-03", value: 46000 },
+    { date: "2023-04", value: 49000 },
+    { date: "2023-05", value: 52000 },
+    { date: "2023-06", value: 51000 },
+    { date: "2023-07", value: 55000 },
+    { date: "2023-08", value: 54000 },
+    { date: "2023-09", value: 58000 },
+    { date: "2023-10", value: 60000 },
+    { date: "2023-11", value: 62000 },
+    { date: "2023-12", value: 65000 },
+];

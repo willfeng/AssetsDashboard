@@ -1,0 +1,287 @@
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MOCK_ASSETS, MOCK_HISTORY } from "@/lib/mockData";
+import { AssetType } from "@/types";
+import { cn } from "@/lib/utils";
+import {
+  Area,
+  AreaChart,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+
+export default function Dashboard() {
+  // Calculate totals
+  const totalBalance = MOCK_ASSETS.reduce((acc, asset) => {
+    if (asset.type === "BANK") return acc + asset.balance;
+    return acc + (asset.totalValue || 0);
+  }, 0);
+
+  const assetsByType = MOCK_ASSETS.reduce((acc, asset) => {
+    const value = asset.type === "BANK" ? asset.balance : asset.totalValue || 0;
+    acc[asset.type] = (acc[asset.type] || 0) + value;
+    return acc;
+  }, {} as Record<AssetType, number>);
+
+  const pieData = Object.entries(assetsByType).map(([name, value]) => ({
+    name,
+    value,
+  }));
+
+  return (
+    <div className="p-8 space-y-8">
+      {/* Top Row: Total Net Worth (Full Width) */}
+      <Card className="w-full">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            {/* Left: Total Balance */}
+            <div className="space-y-2">
+              <h2 className="text-sm font-medium text-muted-foreground">Total Net Worth (USD)</h2>
+              <div className="text-4xl font-bold">${totalBalance.toLocaleString()}</div>
+              <div className="flex items-center text-sm text-green-500">
+                <span className="font-medium">+2.5% (+$31,250)</span>
+                <span className="ml-2 text-muted-foreground">Today</span>
+              </div>
+            </div>
+
+            {/* Middle: Key Metrics (NEW) */}
+            <div className="hidden md:flex gap-8 border-l pl-8 border-r pr-8">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Month High</p>
+                <p className="font-semibold">$1,280,000</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Month Low</p>
+                <p className="font-semibold">$1,150,000</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">YTD</p>
+                <p className="font-semibold text-green-500">+15.4%</p>
+              </div>
+            </div>
+
+            {/* Right: Return Overview (NEW) */}
+            <div className="flex flex-col gap-4 w-full md:w-[400px]">
+              <div className="flex items-center justify-end">
+                <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+                  {['1W', '1M', '1Y', '3Y', '5Y'].map((period) => (
+                    <button
+                      key={period}
+                      className={cn(
+                        "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                        period === '1Y'
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      )}
+                    >
+                      {period}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col items-end justify-center h-full pb-2">
+                <div className="text-5xl font-bold text-green-500 tracking-tight">
+                  +12.5%
+                </div>
+                <div className="text-sm font-medium text-muted-foreground mt-1">
+                  +$156,250.00
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Middle Row: Allocation (1/3) + Trend (2/3) */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle>Asset Allocation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 space-y-3">
+              {pieData.map((entry, index) => (
+                <div key={entry.name} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <span className="text-muted-foreground">{entry.name}</span>
+                  </div>
+                  <div className="font-medium">
+                    ${entry.value.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-2">
+          <CardHeader>
+            <CardTitle>Asset Trend</CardTitle>
+          </CardHeader>
+          <CardContent className="pl-2">
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={MOCK_HISTORY}>
+                  <defs>
+                    <linearGradient id="colorValueMain" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `$${value}`}
+                  />
+                  <Tooltip />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorValueMain)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Row: Asset Lists (3 Columns) */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Bank Accounts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {MOCK_ASSETS.filter((a) => a.type === "BANK").map((asset) => (
+                <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {asset.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {asset.currency}
+                    </p>
+                  </div>
+                  <div className="font-medium">
+                    {asset.currency === "USD" ? "$" : "HK$"}
+                    {asset.balance?.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Stocks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {MOCK_ASSETS.filter((a) => a.type === "STOCK").map((asset: any) => (
+                <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {asset.symbol}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {asset.quantity} shares
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">
+                      ${asset.totalValue?.toLocaleString()}
+                    </div>
+                    <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
+                      {asset.change24h > 0 ? "+" : ""}{asset.change24h}%
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Crypto</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {MOCK_ASSETS.filter((a) => a.type === "CRYPTO").map((asset: any) => (
+                <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {asset.symbol}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {asset.quantity} coins
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">
+                      ${asset.totalValue?.toLocaleString()}
+                    </div>
+                    <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
+                      {asset.change24h > 0 ? "+" : ""}{asset.change24h}%
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
