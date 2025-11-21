@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -32,8 +32,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs } from "@/components/ui/tabs"
 import { AssetType } from "@/types"
+import { cn } from "@/lib/utils"
 
 // Schema definitions
 const baseSchema = z.object({
@@ -79,6 +80,10 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
     const [activeTab, setActiveTab] = useState<AssetType>("BANK")
     const [loading, setLoading] = useState(false)
 
+    // Animation state
+    const [tabStyle, setTabStyle] = useState({ left: 0, width: 0 })
+    const tabsRef = useRef<(HTMLButtonElement | null)[]>([])
+
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
@@ -90,9 +95,22 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
         },
     })
 
+    // Update animation when active tab changes
+    useEffect(() => {
+        const tabs = ["BANK", "STOCK", "CRYPTO"]
+        const activeIndex = tabs.indexOf(activeTab)
+        const activeElement = tabsRef.current[activeIndex]
+
+        if (activeElement) {
+            setTabStyle({
+                left: activeElement.offsetLeft,
+                width: activeElement.offsetWidth,
+            })
+        }
+    }, [activeTab, open]) // Update on open too to ensure correct initial position
+
     // Reset form when tab changes
     const onTabChange = (value: string) => {
-        console.log("Tab changed to:", value);
         const type = value as AssetType
         setActiveTab(type)
         form.reset({
@@ -102,7 +120,7 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
             ...(type === "BANK"
                 ? { balance: 0, currency: "USD" }
                 : { symbol: "", quantity: 0, costBasis: 0 }),
-        })
+        } as any)
     }
 
     const onSubmit = async (data: FormValues) => {
@@ -145,14 +163,36 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
                 </DialogHeader>
 
                 <Tabs value={activeTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="BANK" onClick={() => onTabChange("BANK")}>Bank</TabsTrigger>
-                        <TabsTrigger value="STOCK" onClick={() => onTabChange("STOCK")}>Stock</TabsTrigger>
-                        <TabsTrigger value="CRYPTO" onClick={() => onTabChange("CRYPTO")}>Crypto</TabsTrigger>
-                    </TabsList>
+                    {/* Custom Sliding Tabs List */}
+                    <div className="relative flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground w-full mb-4">
+                        {/* The Sliding Pill */}
+                        <div
+                            className="absolute top-1 bottom-1 rounded-sm bg-primary shadow-sm transition-all duration-300 ease-out"
+                            style={{
+                                left: tabStyle.left,
+                                width: tabStyle.width,
+                            }}
+                        />
+
+                        {/* Tab Buttons */}
+                        {["BANK", "STOCK", "CRYPTO"].map((type, index) => (
+                            <button
+                                key={type}
+                                ref={(el) => { tabsRef.current[index] = el }}
+                                type="button"
+                                onClick={() => onTabChange(type as AssetType)}
+                                className={cn(
+                                    "z-10 inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                    activeTab === type ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground/70"
+                                )}
+                            >
+                                {type === "BANK" ? "Bank" : type === "STOCK" ? "Stock" : "Crypto"}
+                            </button>
+                        ))}
+                    </div>
 
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
                             {/* Common Field: Name */}
                             <FormField
