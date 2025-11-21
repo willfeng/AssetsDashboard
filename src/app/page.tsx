@@ -1,89 +1,82 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Asset, AssetType } from "@/types";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell } from "recharts";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, DollarSign, Wallet, Bitcoin } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Area,
-  AreaChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Asset, HistoricalDataPoint } from "@/types";
+import { AddAssetModal } from "@/components/AddAssetModal";
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
 export default function Dashboard() {
-  const [timeRange, setTimeRange] = useState("1Y");
+  const [timeRange, setTimeRange] = useState("1M");
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [historyData, setHistoryData] = useState<{ date: string; value: number }[]>([]);
-  const [returnPct, setReturnPct] = useState("+0.0%");
-  const [returnVal, setReturnVal] = useState("+$0.00");
+  const [historyData, setHistoryData] = useState<HistoricalDataPoint[]>([]);
+  const [returnPct, setReturnPct] = useState(0);
+  const [returnVal, setReturnVal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Fetch Assets
-  useEffect(() => {
-    const fetchAssets = async () => {
-      try {
-        console.log("Fetching assets...");
-        const res = await fetch('/api/assets');
-        console.log("Assets response status:", res.status);
-        const data = await res.json();
-        console.log("Fetched assets data:", data);
-        setAssets(data);
-      } catch (error) {
-        console.error("Failed to fetch assets:", error);
-      }
-    };
-    fetchAssets();
+  const fetchAssets = useCallback(async () => {
+    try {
+      console.log("Fetching assets...");
+      const res = await fetch('/api/assets');
+      console.log("Assets response status:", res.status);
+      const data = await res.json();
+      console.log("Fetched assets data:", data);
+      setAssets(data);
+    } catch (error) {
+      console.error("Failed to fetch assets:", error);
+    }
   }, []);
 
-  // Fetch History based on Time Range
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/history?range=${timeRange}`);
-        const data = await res.json();
-        setHistoryData(data.historyData);
-        setReturnPct(data.returnPct);
-        setReturnVal(data.returnVal);
-      } catch (error) {
-        console.error("Failed to fetch history:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchHistory();
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/history?range=${timeRange}`);
+      const data = await res.json();
+      setHistoryData(data.historyData);
+      setReturnPct(data.returnPct);
+      setReturnVal(data.returnVal);
+    } catch (error) {
+      console.error("Failed to fetch history:", error);
+    }
   }, [timeRange]);
 
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([fetchAssets(), fetchHistory()]);
+      setLoading(false);
+    };
+    init();
+  }, [fetchAssets, fetchHistory]);
+
   // Calculate totals
-  const totalBalance = assets.reduce((acc, asset) => {
-    if (asset.type === "BANK") return acc + asset.balance;
-    return acc + (asset.totalValue || 0);
+  const totalBalance = assets.reduce((sum, asset) => {
+    if (asset.type === "BANK") return sum + asset.balance;
+    return sum + (asset.totalValue || 0);
   }, 0);
 
-  const assetsByType = assets.reduce((acc, asset) => {
-    const value = asset.type === "BANK" ? asset.balance : asset.totalValue || 0;
-    acc[asset.type] = (acc[asset.type] || 0) + value;
+  // Calculate allocation for Pie Chart
+  const allocation = assets.reduce((acc, asset) => {
+    const type = asset.type === "BANK" ? "Cash" : asset.type === "STOCK" ? "Stock" : "Crypto";
+    acc[type] = (acc[type] || 0) + (asset.type === "BANK" ? asset.balance : asset.totalValue || 0);
     return acc;
-  }, {} as Record<AssetType, number>);
+  }, {} as Record<string, number>);
 
-  const pieData = Object.entries(assetsByType).map(([name, value]) => ({
-    name,
-    value,
-  }));
-
-  console.log("Render: assets length:", assets.length);
-  console.log("Render: totalBalance:", totalBalance);
+  const pieData = Object.entries(allocation).map(([name, value]) => ({ name, value }));
 
   return (
     <div className="p-8 space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <AddAssetModal onAssetAdded={() => {
+          fetchAssets();
+          fetchHistory(); // Also refresh history as it might depend on assets in real app
+        }} />
+      </div>
+
       {/* Top Row: Total Net Worth (Full Width) */}
       <Card className="w-full">
         <CardContent className="p-6">
@@ -261,10 +254,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="text-xs text-muted-foreground">
-                Debug: Total Assets: {assets.length}, Banks: {assets.filter(a => a.type === "BANK").length}
-              </div>
-              {assets.filter((a) => a.type === "BANK").map((asset) => (
+              {assets.filter((a) => a.type === "BANK").map((asset: any) => (
                 <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">

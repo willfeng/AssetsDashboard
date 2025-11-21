@@ -1,0 +1,105 @@
+{
+  "assets": [
+    {
+      "id": "bank-1763698556799",
+      "type": "BANK",
+      "name": "Test Persistence",
+      "balance": 1000,
+      "currency": "USD",
+      "totalValue": 1000
+    },
+    {
+      "id": "bank-1763698698495",
+      "name": "招商银行",
+      "note": "",
+      "type": "BANK",
+      "balance": 1850000,
+      "currency": "USD",
+      "totalValue": 1850000
+    },
+    {
+      "id": "stock-1763698768898",
+      "name": "英伟达",
+      "note": "",
+      "type": "STOCK",
+      "symbol": "NVDA",
+      "quantity": 820,
+      "costBasis": 0,
+      "totalValue": 82000,
+      "currentPrice": 100
+    },
+    {
+      "id": "crypto-1763698823030",
+      "name": "比特币",
+      "note": "",
+      "type": "CRYPTO",
+      "symbol": "BTC",
+      "quantity": 0.5,
+      "costBasis": 0,
+      "totalValue": 50,
+      "currentPrice": 100
+    },
+    {
+      "id": "crypto-1763698848459",
+      "name": "以太坊",
+      "note": "",
+      "type": "CRYPTO",
+      "symbol": "ETH",
+      "quantity": 2.5,
+      "costBasis": 0,
+      "totalValue": 250,
+      "currentPrice": 100
+    },
+    {
+      "id": "stock-1763698889628",
+      "name": "谷歌",
+      "note": "",
+      "type": "STOCK",
+      "symbol": "GOOGL",
+      "quantity": 320,
+      "costBasis": 0,
+      "totalValue": 32000,
+      "currentPrice": 100
+    },
+    {
+      "id": "stock-1763698912624",
+      "name": "特斯拉",
+      "note": "",
+      "type": "STOCK",
+      "symbol": "TSLA",
+      "quantity": 228,
+      "costBasis": 0,
+      "totalValue": 22800,
+      "currentPrice": 100
+    },
+    {
+      "id": "bank-1763698993977",
+      "name": "星展银行",
+      "note": "",
+      "type": "BANK",
+      "balance": 1200000,
+      "currency": "USD",
+      "totalValue": 1200000
+    },
+    {
+      "id": "bank-1763699021083",
+      "name": "汇丰银行",
+      "note": "",
+      "type": "BANK",
+      "balance": 5800,
+      "currency": "HKD",
+      "totalValue": 5800
+    },
+    {
+      "id": "crypto-1763699059229",
+      "name": "索拉纳",
+      "note": "",
+      "type": "CRYPTO",
+      "symbol": "SOL",
+      "quantity": 5,
+      "costBasis": 0,
+      "totalValue": 500,
+      "currentPrice": 100
+    }
+  ]
+}
