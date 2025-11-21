@@ -46,6 +46,7 @@ const bankSchema = baseSchema.extend({
     type: z.literal("BANK"),
     balance: z.coerce.number().min(0, "Balance must be positive"),
     currency: z.enum(["USD", "HKD", "CNY", "EUR", "GBP"]),
+    apy: z.coerce.number().optional(),
 })
 
 const stockSchema = baseSchema.extend({
@@ -97,17 +98,22 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
 
     // Update animation when active tab changes
     useEffect(() => {
-        const tabs = ["BANK", "STOCK", "CRYPTO"]
-        const activeIndex = tabs.indexOf(activeTab)
-        const activeElement = tabsRef.current[activeIndex]
+        if (open) {
+            const timer = setTimeout(() => {
+                const tabs = ["BANK", "STOCK", "CRYPTO"]
+                const activeIndex = tabs.indexOf(activeTab)
+                const activeElement = tabsRef.current[activeIndex]
 
-        if (activeElement) {
-            setTabStyle({
-                left: activeElement.offsetLeft,
-                width: activeElement.offsetWidth,
-            })
+                if (activeElement) {
+                    setTabStyle({
+                        left: activeElement.offsetLeft,
+                        width: activeElement.offsetWidth,
+                    })
+                }
+            }, 100)
+            return () => clearTimeout(timer)
         }
-    }, [activeTab, open]) // Update on open too to ensure correct initial position
+    }, [activeTab, open])
 
     // Reset form when tab changes
     const onTabChange = (value: string) => {
@@ -164,10 +170,10 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
 
                 <Tabs value={activeTab} className="w-full">
                     {/* Custom Sliding Tabs List */}
-                    <div className="relative flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground w-full mb-4">
+                    <div className="relative flex h-10 items-center justify-center rounded-md bg-zinc-100 p-1 text-zinc-500 w-full mb-4">
                         {/* The Sliding Pill */}
                         <div
-                            className="absolute top-1 bottom-1 rounded-sm bg-primary shadow-sm transition-all duration-300 ease-out"
+                            className="absolute top-1 bottom-1 rounded-sm bg-white border border-black shadow-sm transition-all duration-300 ease-out"
                             style={{
                                 left: tabStyle.left,
                                 width: tabStyle.width,
@@ -183,7 +189,7 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
                                 onClick={() => onTabChange(type as AssetType)}
                                 className={cn(
                                     "z-10 inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                    activeTab === type ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground/70"
+                                    activeTab === type ? "text-black" : "text-zinc-500 hover:text-zinc-700"
                                 )}
                             >
                                 {type === "BANK" ? "Bank" : type === "STOCK" ? "Stock" : "Crypto"}
@@ -245,6 +251,19 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
                                                         <SelectItem value="GBP">GBP</SelectItem>
                                                     </SelectContent>
                                                 </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="apy"
+                                        render={({ field }: { field: any }) => (
+                                            <FormItem>
+                                                <FormLabel>Interest Rate (APY %)</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" step="0.01" placeholder="e.g. 0.01" {...field} />
+                                                </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}

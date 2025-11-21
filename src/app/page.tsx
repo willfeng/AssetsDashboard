@@ -17,14 +17,13 @@ export default function Dashboard() {
   const [returnPct, setReturnPct] = useState(0);
   const [returnVal, setReturnVal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchAssets = useCallback(async () => {
     try {
       console.log("Fetching assets...");
       const res = await fetch('/api/assets');
-      console.log("Assets response status:", res.status);
       const data = await res.json();
-      console.log("Fetched assets data:", data);
       setAssets(data);
     } catch (error) {
       console.error("Failed to fetch assets:", error);
@@ -43,14 +42,34 @@ export default function Dashboard() {
     }
   }, [timeRange]);
 
+  const refreshPrices = useCallback(async () => {
+    try {
+      console.log("Refreshing prices...");
+      const res = await fetch('/api/assets/refresh', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setAssets(data.assets); // Update with fresh data directly
+        setLastUpdated(new Date());
+        fetchHistory(); // Refresh history too
+      }
+    } catch (error) {
+      console.error("Failed to refresh prices:", error);
+    }
+  }, [fetchHistory]);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
       await Promise.all([fetchAssets(), fetchHistory()]);
+      setLastUpdated(new Date());
       setLoading(false);
     };
     init();
-  }, [fetchAssets, fetchHistory]);
+
+    // Auto-refresh every 5 minutes (300,000 ms)
+    const intervalId = setInterval(refreshPrices, 300000);
+    return () => clearInterval(intervalId);
+  }, [fetchAssets, fetchHistory, refreshPrices]);
 
   // Calculate totals
   const totalBalance = assets.reduce((sum, asset) => {
@@ -70,10 +89,17 @@ export default function Dashboard() {
   return (
     <div className="p-8 space-y-8">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <div className="space-y-1">
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          {lastUpdated && (
+            <p className="text-xs text-muted-foreground">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
+        </div>
         <AddAssetModal onAssetAdded={() => {
           fetchAssets();
-          fetchHistory(); // Also refresh history as it might depend on assets in real app
+          fetchHistory();
         }} />
       </div>
 

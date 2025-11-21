@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { Asset } from '@/types';
+import { MarketDataService } from '@/lib/market-data';
 
 export async function GET() {
     const db = await getDb();
@@ -28,13 +29,28 @@ export async function POST(request: Request) {
                 : (body.quantity * (body.currentPrice || 0)) // Price will be 0 initially until market data integration
         };
 
-        // For now, if it's a stock/crypto, we need a mock price if not provided
-        // In the next step (Real-time Data), this will be fetched from API
+        // Fetch real-time price for investments
         if (newAsset.type === 'STOCK' || newAsset.type === 'CRYPTO') {
-            // Temporary mock price logic to avoid 0 value
             if (!newAsset.currentPrice) {
-                newAsset.currentPrice = 100; // Default mock price
-                newAsset.totalValue = newAsset.quantity * newAsset.currentPrice;
+                try {
+                    const price = await MarketDataService.getAssetPrice(
+                        newAsset.symbol!,
+                        newAsset.type
+                    );
+                    if (price > 0) {
+                        newAsset.currentPrice = price;
+                        newAsset.totalValue = newAsset.quantity * price;
+                    } else {
+                        // Fallback if API fails (keep 0 or set a flag?)
+                        // For now, we'll leave it as 0 but maybe log a warning
+                        console.warn(`Could not fetch price for ${newAsset.symbol}`);
+                        // Optional: Set a default mock price if you really want to avoid 0 in demo
+                        // newAsset.currentPrice = 100; 
+                        // newAsset.totalValue = newAsset.quantity * 100;
+                    }
+                } catch (e) {
+                    console.error("Price fetch failed:", e);
+                }
             }
         }
 
