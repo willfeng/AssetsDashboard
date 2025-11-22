@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { MarketDataService } from '@/lib/market-data';
+import { recordDailyHistory } from '@/lib/history';
 
 export async function POST() {
     try {
@@ -38,6 +39,9 @@ export async function POST() {
         if (updatedCount > 0) {
             await db.write();
         }
+
+        // Record daily history after refresh
+        await recordDailyHistory();
 
         return NextResponse.json({
             success: true,

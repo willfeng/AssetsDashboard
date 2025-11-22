@@ -2,13 +2,24 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell } from "recharts";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, DollarSign, Wallet, Bitcoin } from "lucide-react";
+import dynamic from "next/dynamic";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, DollarSign, Wallet, Bitcoin, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Asset, HistoricalDataPoint } from "@/types";
 import { AddAssetModal } from "@/components/AddAssetModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
+const DashboardCharts = dynamic(() => import("@/components/DashboardCharts"), { ssr: false });
 
 export default function Dashboard() {
   const [timeRange, setTimeRange] = useState("1M");
@@ -18,6 +29,11 @@ export default function Dashboard() {
   const [returnVal, setReturnVal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // Edit/Delete State
+  const [editingAsset, setEditingAsset] = useState<Asset | undefined>(undefined);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -71,6 +87,29 @@ export default function Dashboard() {
     return () => clearInterval(intervalId);
   }, [fetchAssets, fetchHistory, refreshPrices]);
 
+  // Handlers
+  const handleEdit = (asset: Asset) => {
+    setEditingAsset(asset);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setDeletingAssetId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingAssetId) return;
+    try {
+      await fetch(`/api/assets?id=${deletingAssetId}`, { method: 'DELETE' });
+      fetchAssets();
+      fetchHistory();
+    } catch (error) {
+      console.error("Failed to delete asset:", error);
+    } finally {
+      setDeletingAssetId(null);
+    }
+  };
+
   // Calculate totals
   const totalBalance = assets.reduce((sum, asset) => {
     if (asset.type === "BANK") return sum + asset.balance;
@@ -86,6 +125,17 @@ export default function Dashboard() {
 
   const pieData = Object.entries(allocation).map(([name, value]) => ({ name, value }));
 
+  const AssetActions = ({ asset }: { asset: Asset }) => (
+    <div className="flex items-center gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(asset)}>
+        <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(asset.id!)}>
+        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+      </Button>
+    </div>
+  );
+
   return (
     <div className="p-8 space-y-8">
       <div className="flex justify-between items-center">
@@ -97,10 +147,41 @@ export default function Dashboard() {
             </p>
           )}
         </div>
-        <AddAssetModal onAssetAdded={() => {
-          fetchAssets();
-          fetchHistory();
-        }} />
+        <AddAssetModal
+          onAssetAdded={() => {
+            fetchAssets();
+            fetchHistory();
+          }}
+        />
+
+        {/* Hidden Edit Modal - Controlled */}
+        <AddAssetModal
+          open={isEditModalOpen}
+          onOpenChange={setIsEditModalOpen}
+          initialData={editingAsset}
+          onAssetAdded={() => {
+            fetchAssets();
+            fetchHistory();
+            setIsEditModalOpen(false);
+          }}
+        />
+
+        <AlertDialog open={!!deletingAssetId} onOpenChange={(open: boolean) => !open && setDeletingAssetId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the asset from your portfolio.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Top Row: Total Net Worth (Full Width) */}
@@ -166,111 +247,8 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Middle Row: Allocation (1/3) + Trend (2/3) */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Asset Allocation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px]">
-              {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  Loading allocation...
-                </div>
-              )}
-            </div>
-            <div className="mt-4 space-y-3">
-              {pieData.map((entry, index) => (
-                <div key={entry.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <span className="text-muted-foreground">{entry.name}</span>
-                  </div>
-                  <div className="font-medium">
-                    ${entry.value.toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-2">
-          <CardHeader>
-            <CardTitle>Asset Trend</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <div className="h-[350px]">
-              {historyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={historyData}>
-                    <defs>
-                      <linearGradient id="colorValueMain" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="date"
-                      stroke="#888888"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke="#888888"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
-                    />
-                    <Tooltip />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorValueMain)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  Loading trend data...
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Middle Row: Charts */}
+      <DashboardCharts pieData={pieData} historyData={historyData} />
 
       {/* Bottom Row: Asset Lists (3 Columns) */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -281,7 +259,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {assets.filter((a) => a.type === "BANK").map((asset: any) => (
-                <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">
                       {asset.name}
@@ -290,9 +268,12 @@ export default function Dashboard() {
                       {asset.currency}
                     </p>
                   </div>
-                  <div className="font-medium">
-                    {asset.currency === "USD" ? "$" : "HK$"}
-                    {asset.balance?.toLocaleString()}
+                  <div className="flex items-center">
+                    <div className="font-medium">
+                      {asset.currency === "USD" ? "$" : "HK$"}
+                      {asset.balance?.toLocaleString()}
+                    </div>
+                    <AssetActions asset={asset} />
                   </div>
                 </div>
               ))}
@@ -307,7 +288,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {assets.filter((a) => a.type === "STOCK").map((asset: any) => (
-                <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">
                       {asset.symbol}
@@ -316,13 +297,16 @@ export default function Dashboard() {
                       {asset.quantity} shares
                     </p>
                   </div>
-                  <div className="text-right">
-                    <div className="font-medium">
-                      ${asset.totalValue?.toLocaleString()}
+                  <div className="flex items-center">
+                    <div className="text-right">
+                      <div className="font-medium">
+                        ${asset.totalValue?.toLocaleString()}
+                      </div>
+                      <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
+                        {asset.change24h > 0 ? "+" : ""}{asset.change24h}%
+                      </p>
                     </div>
-                    <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
-                      {asset.change24h > 0 ? "+" : ""}{asset.change24h}%
-                    </p>
+                    <AssetActions asset={asset} />
                   </div>
                 </div>
               ))}
@@ -337,7 +321,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {assets.filter((a) => a.type === "CRYPTO").map((asset: any) => (
-                <div key={asset.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">
                       {asset.symbol}
@@ -346,13 +330,16 @@ export default function Dashboard() {
                       {asset.quantity} coins
                     </p>
                   </div>
-                  <div className="text-right">
-                    <div className="font-medium">
-                      ${asset.totalValue?.toLocaleString()}
+                  <div className="flex items-center">
+                    <div className="text-right">
+                      <div className="font-medium">
+                        ${asset.totalValue?.toLocaleString()}
+                      </div>
+                      <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
+                        {asset.change24h > 0 ? "+" : ""}{asset.change24h}%
+                      </p>
                     </div>
-                    <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
-                      {asset.change24h > 0 ? "+" : ""}{asset.change24h}%
-                    </p>
+                    <AssetActions asset={asset} />
                   </div>
                 </div>
               ))}

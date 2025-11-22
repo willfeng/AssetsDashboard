@@ -1,232 +1,240 @@
-"use client"
-
 import { useState, useRef, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Plus } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { Tabs } from "@/components/ui/tabs"
-import { AssetType } from "@/types"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { Asset } from "@/types"
 
-// Schema definitions
-const baseSchema = z.object({
+// Schemas
+const bankSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
-    note: z.string().optional(),
-})
-
-const bankSchema = baseSchema.extend({
-    type: z.literal("BANK"),
     balance: z.coerce.number().min(0, "Balance must be positive"),
-    currency: z.enum(["USD", "HKD", "CNY", "EUR", "GBP"]),
+    currency: z.enum(["USD", "HKD", "CNY"]),
     apy: z.coerce.number().optional(),
 })
 
-const stockSchema = baseSchema.extend({
-    type: z.literal("STOCK"),
+const stockSchema = z.object({
+    name: z.string().min(1, "Name is required"),
     symbol: z.string().min(1, "Symbol is required").toUpperCase(),
     quantity: z.coerce.number().min(0.000001, "Quantity must be positive"),
-    costBasis: z.coerce.number().optional(),
 })
 
-const cryptoSchema = baseSchema.extend({
-    type: z.literal("CRYPTO"),
+const cryptoSchema = z.object({
+    name: z.string().min(1, "Name is required"),
     symbol: z.string().min(1, "Symbol is required").toUpperCase(),
-    quantity: z.coerce.number().min(0.00000001, "Quantity must be positive"),
-    costBasis: z.coerce.number().optional(),
+    quantity: z.coerce.number().min(0.000001, "Quantity must be positive"),
 })
 
-// Union schema for form
-const formSchema = z.discriminatedUnion("type", [
-    bankSchema,
-    stockSchema,
-    cryptoSchema,
-])
+type AssetType = 'BANK' | 'STOCK' | 'CRYPTO'
 
-type FormValues = z.infer<typeof formSchema>
-
-interface AddAssetModalProps {
+interface AssetModalProps {
     onAssetAdded: () => void
+    initialData?: Asset
+    trigger?: React.ReactNode
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
 }
 
-export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
-    const [open, setOpen] = useState(false)
-    const [activeTab, setActiveTab] = useState<AssetType>("BANK")
-    const [loading, setLoading] = useState(false)
+export function AddAssetModal({ onAssetAdded, initialData, trigger, open: controlledOpen, onOpenChange }: AssetModalProps) {
+    const [internalOpen, setInternalOpen] = useState(false)
+    const isControlled = controlledOpen !== undefined
+    const open = isControlled ? controlledOpen : internalOpen
+    const setOpen = isControlled ? onOpenChange! : setInternalOpen
 
-    // Animation state
-    const [tabStyle, setTabStyle] = useState({ left: 0, width: 0 })
-    const tabsRef = useRef<(HTMLButtonElement | null)[]>([])
+    const [activeTab, setActiveTab] = useState<AssetType>(initialData?.type || "BANK")
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const form = useForm<FormValues>({
-        resolver: zodResolver(formSchema) as any,
-        defaultValues: {
-            type: "BANK",
+    // Form setup
+    const form = useForm({
+        resolver: zodResolver(
+            activeTab === "BANK" ? bankSchema :
+                activeTab === "STOCK" ? stockSchema : cryptoSchema
+        ),
+        defaultValues: initialData ? {
+            name: initialData.name,
+            balance: initialData.type === 'BANK' ? initialData.balance : 0,
+            currency: initialData.type === 'BANK' ? initialData.currency : "USD",
+            // Use type assertion or check for existence safely
+            symbol: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.symbol : "",
+            quantity: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.quantity : 0,
+            apy: initialData.type === 'BANK' ? initialData.apy : 0
+        } : {
             name: "",
             balance: 0,
             currency: "USD",
-            note: "",
-        },
+            symbol: "",
+            quantity: 0,
+            apy: 0
+        }
     })
 
-    // Update animation when active tab changes
+    // Reset form when initialData changes or modal opens
     useEffect(() => {
         if (open) {
-            const timer = setTimeout(() => {
-                const tabs = ["BANK", "STOCK", "CRYPTO"]
-                const activeIndex = tabs.indexOf(activeTab)
-                const activeElement = tabsRef.current[activeIndex]
-
-                if (activeElement) {
-                    setTabStyle({
-                        left: activeElement.offsetLeft,
-                        width: activeElement.offsetWidth,
-                    })
-                }
-            }, 100)
-            return () => clearTimeout(timer)
+            if (initialData) {
+                setActiveTab(initialData.type)
+                form.reset({
+                    name: initialData.name,
+                    balance: initialData.type === 'BANK' ? initialData.balance : 0,
+                    currency: initialData.type === 'BANK' ? initialData.currency : "USD",
+                    symbol: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.symbol : "",
+                    quantity: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.quantity : 0,
+                    apy: initialData.type === 'BANK' ? initialData.apy : 0
+                })
+            } else {
+                // Only reset to defaults if we're not editing (and maybe switching tabs)
+                // But if we just opened "Add", we want clean state.
+                // If we switch tabs in "Add" mode, we might want to keep some fields? No, usually clear.
+            }
         }
-    }, [activeTab, open])
+    }, [open, initialData, form])
 
-    // Reset form when tab changes
-    const onTabChange = (value: string) => {
-        const type = value as AssetType
-        setActiveTab(type)
-        form.reset({
-            type: type,
-            name: "",
-            note: "",
-            ...(type === "BANK"
-                ? { balance: 0, currency: "USD" }
-                : { symbol: "", quantity: 0, costBasis: 0 }),
-        } as any)
-    }
-
-    const onSubmit = async (data: FormValues) => {
-        setLoading(true)
+    const onSubmit = async (data: any) => {
+        setIsSubmitting(true)
         try {
-            const response = await fetch("/api/assets", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
+            const payload = { ...data, type: activeTab }
+
+            let url = '/api/assets'
+            let method = 'POST'
+
+            if (initialData) {
+                url = '/api/assets' // Same endpoint, different method
+                method = 'PUT'
+                payload.id = initialData.id
+            }
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
             })
 
-            if (!response.ok) {
-                throw new Error("Failed to add asset")
-            }
+            if (!res.ok) throw new Error('Failed to save asset')
 
             onAssetAdded()
             setOpen(false)
-            form.reset()
+            if (!initialData) form.reset()
         } catch (error) {
-            console.error("Error adding asset:", error)
+            console.error(error)
         } finally {
-            setLoading(false)
+            setIsSubmitting(false)
         }
     }
 
+    const onTabChange = (value: string) => {
+        const newType = value as AssetType
+        setActiveTab(newType)
+        // When switching types in Add mode, clear relevant fields but maybe keep name?
+        // For simplicity, just clear if not editing.
+        if (!initialData) {
+            form.reset({
+                name: "",
+                balance: 0,
+                currency: "USD",
+                symbol: "",
+                quantity: 0,
+                apy: 0
+            })
+        }
+    }
+
+    // Animation logic (same as before)
+    const [tabStyle, setTabStyle] = useState({ left: 0, width: 0 })
+    const tabsRef = useRef<(HTMLButtonElement | null)[]>([])
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const currentIndex = ["BANK", "STOCK", "CRYPTO"].indexOf(activeTab)
+            const currentTab = tabsRef.current[currentIndex]
+            if (currentTab) {
+                setTabStyle({
+                    left: currentTab.offsetLeft,
+                    width: currentTab.offsetWidth
+                })
+            }
+        }, 100)
+        return () => clearTimeout(timer)
+    }, [activeTab, open])
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add Asset
-                </Button>
-            </DialogTrigger>
+            {trigger ? (
+                <DialogTrigger asChild>
+                    {trigger}
+                </DialogTrigger>
+            ) : (
+                !isControlled && (
+                    <DialogTrigger asChild>
+                        <Button>Add Asset</Button>
+                    </DialogTrigger>
+                )
+            )}
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Add New Asset</DialogTitle>
+                    <DialogTitle>{initialData ? "Edit Asset" : "Add New Asset"}</DialogTitle>
                     <DialogDescription>
-                        Enter the details of your asset. Click save when you're done.
+                        {initialData ? "Update the details of your asset." : "Enter the details of your asset."} Click save when you're done.
                     </DialogDescription>
                 </DialogHeader>
 
                 <Tabs value={activeTab} className="w-full">
-                    {/* Custom Sliding Tabs List */}
-                    <div className="relative flex h-10 items-center justify-center rounded-md bg-zinc-100 p-1 text-zinc-500 w-full mb-4">
-                        {/* The Sliding Pill */}
-                        <div
-                            className="absolute top-1 bottom-1 rounded-sm bg-white border border-black shadow-sm transition-all duration-300 ease-out"
-                            style={{
-                                left: tabStyle.left,
-                                width: tabStyle.width,
-                            }}
-                        />
-
-                        {/* Tab Buttons */}
-                        {["BANK", "STOCK", "CRYPTO"].map((type, index) => (
-                            <button
-                                key={type}
-                                ref={(el) => { tabsRef.current[index] = el }}
-                                type="button"
-                                onClick={() => onTabChange(type as AssetType)}
-                                className={cn(
-                                    "z-10 inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                    activeTab === type ? "text-black" : "text-zinc-500 hover:text-zinc-700"
-                                )}
-                            >
-                                {type === "BANK" ? "Bank" : type === "STOCK" ? "Stock" : "Crypto"}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Custom Sliding Tabs List - Hide in Edit mode if type change is not allowed, or allow it? 
+                        Usually changing type (Bank -> Stock) is rare. Let's disable tabs in Edit mode for simplicity 
+                        or just hide them to prevent confusion. */}
+                    {!initialData && (
+                        <div className="relative flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground w-full mb-4">
+                            <div
+                                className="absolute top-1 bottom-1 rounded-sm bg-white border border-black shadow-sm transition-all duration-300 ease-out"
+                                style={{
+                                    left: tabStyle.left,
+                                    width: tabStyle.width,
+                                }}
+                            />
+                            {["BANK", "STOCK", "CRYPTO"].map((type, index) => (
+                                <button
+                                    key={type}
+                                    ref={(el) => { tabsRef.current[index] = el }}
+                                    type="button"
+                                    onClick={() => onTabChange(type)}
+                                    className={cn(
+                                        "z-10 inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                        activeTab === type ? "text-foreground" : "text-muted-foreground hover:text-foreground/70"
+                                    )}
+                                >
+                                    {type === "BANK" ? "Bank" : type === "STOCK" ? "Stock" : "Crypto"}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-
-                            {/* Common Field: Name */}
-                            <FormField
-                                control={form.control}
-                                name="name"
-                                render={({ field }: { field: any }) => (
-                                    <FormItem>
-                                        <FormLabel>Name</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="e.g. Chase Checking / Apple" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            {/* Bank Specific Fields */}
                             {activeTab === "BANK" && (
                                 <>
                                     <FormField
                                         control={form.control}
+                                        name="name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Bank Name</FormLabel>
+                                                <FormControl><Input placeholder="e.g. Chase Checking" {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
                                         name="balance"
-                                        render={({ field }: { field: any }) => (
+                                        render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Balance</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" step="0.01" {...field} />
-                                                </FormControl>
+                                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -234,21 +242,15 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
                                     <FormField
                                         control={form.control}
                                         name="currency"
-                                        render={({ field }: { field: any }) => (
+                                        render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Currency</FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select currency" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger></FormControl>
                                                     <SelectContent>
                                                         <SelectItem value="USD">USD</SelectItem>
                                                         <SelectItem value="HKD">HKD</SelectItem>
                                                         <SelectItem value="CNY">CNY</SelectItem>
-                                                        <SelectItem value="EUR">EUR</SelectItem>
-                                                        <SelectItem value="GBP">GBP</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -258,12 +260,10 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
                                     <FormField
                                         control={form.control}
                                         name="apy"
-                                        render={({ field }: { field: any }) => (
+                                        render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Interest Rate (APY %)</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" step="0.01" placeholder="e.g. 0.01" {...field} />
-                                                </FormControl>
+                                                <FormControl><Input type="number" placeholder="e.g. 4.5" {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -271,18 +271,26 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
                                 </>
                             )}
 
-                            {/* Investment Specific Fields (Stock/Crypto) */}
                             {(activeTab === "STOCK" || activeTab === "CRYPTO") && (
                                 <>
                                     <FormField
                                         control={form.control}
+                                        name="name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Name</FormLabel>
+                                                <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. Apple" : "e.g. Bitcoin"} {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
                                         name="symbol"
-                                        render={({ field }: { field: any }) => (
+                                        render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Symbol</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="e.g. AAPL / BTC" {...field} />
-                                                </FormControl>
+                                                <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. AAPL" : "e.g. BTC"} {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -290,37 +298,24 @@ export function AddAssetModal({ onAssetAdded }: AddAssetModalProps) {
                                     <FormField
                                         control={form.control}
                                         name="quantity"
-                                        render={({ field }: { field: any }) => (
+                                        render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Quantity</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" step="any" {...field} />
-                                                </FormControl>
+                                                <FormControl><Input type="number" step="any" placeholder="0.00" {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                                    <FormField
-                                        control={form.control}
-                                        name="costBasis"
-                                        render={({ field }: { field: any }) => (
-                                            <FormItem>
-                                                <FormLabel>Cost Basis (Optional)</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" step="any" placeholder="Total cost" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    {/* Placeholder to keep height consistent if needed, or just let it be shorter */}
+                                    <div className="h-[72px] invisible" aria-hidden="true"></div>
                                 </>
                             )}
 
-                            <DialogFooter>
-                                <Button type="submit" disabled={loading}>
-                                    {loading ? "Saving..." : "Save Asset"}
+                            <div className="flex justify-end pt-4">
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting ? "Saving..." : "Save Asset"}
                                 </Button>
-                            </DialogFooter>
+                            </div>
                         </form>
                     </Form>
                 </Tabs>

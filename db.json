@@ -1,14 +1,6 @@
 {
   "assets": [
     {
-      "id": "bank-1763698556799",
-      "type": "BANK",
-      "name": "Test Persistence",
-      "balance": 1000,
-      "currency": "USD",
-      "totalValue": 1000
-    },
-    {
       "id": "bank-1763698698495",
       "name": "招商银行",
       "note": "",
@@ -25,8 +17,8 @@
       "symbol": "NVDA",
       "quantity": 820,
       "costBasis": 0,
-      "totalValue": 148124.8,
-      "currentPrice": 180.64
+      "totalValue": 146681.6,
+      "currentPrice": 178.88
     },
     {
       "id": "crypto-1763698823030",
@@ -34,10 +26,10 @@
       "note": "",
       "type": "CRYPTO",
       "symbol": "BTC",
-      "quantity": 0.5,
+      "quantity": 1,
       "costBasis": 0,
-      "totalValue": 41063.5,
-      "currentPrice": 82127
+      "totalValue": 84689,
+      "currentPrice": 84689
     },
     {
       "id": "crypto-1763698848459",
@@ -45,10 +37,10 @@
       "note": "",
       "type": "CRYPTO",
       "symbol": "ETH",
-      "quantity": 2.5,
+      "quantity": 1,
       "costBasis": 0,
-      "totalValue": 6740.575,
-      "currentPrice": 2696.23
+      "totalValue": 2763.24,
+      "currentPrice": 2763.24
     },
     {
       "id": "stock-1763698889628",
@@ -58,8 +50,8 @@
       "symbol": "GOOGL",
       "quantity": 320,
       "costBasis": 0,
-      "totalValue": 92624,
-      "currentPrice": 289.45
+      "totalValue": 95891.20000000001,
+      "currentPrice": 299.66
     },
     {
       "id": "stock-1763698912624",
@@ -69,8 +61,8 @@
       "symbol": "TSLA",
       "quantity": 228,
       "costBasis": 0,
-      "totalValue": 90112.44,
-      "currentPrice": 395.23
+      "totalValue": 89168.51999999999,
+      "currentPrice": 391.09
     },
     {
       "id": "bank-1763698993977",
@@ -98,96 +90,18 @@
       "symbol": "SOL",
       "quantity": 5,
       "costBasis": 0,
-      "totalValue": 629.25,
-      "currentPrice": 125.85
+      "totalValue": 642.2,
+      "currentPrice": 128.44
+    }
+  ],
+  "history": [
+    {
+      "date": "2025-11-21",
+      "value": 3475985.72
     },
     {
-      "id": "stock-1763716574244",
-      "name": "英伟达",
-      "note": "",
-      "type": "STOCK",
-      "symbol": "NVDA",
-      "quantity": 1,
-      "costBasis": 0,
-      "totalValue": 180.64,
-      "currentPrice": 180.64
-    },
-    {
-      "id": "stock-1763716941886",
-      "name": "英伟达",
-      "note": "",
-      "type": "STOCK",
-      "symbol": "NVDA",
-      "quantity": 1,
-      "costBasis": 0,
-      "totalValue": 180.64,
-      "currentPrice": 180.64
-    },
-    {
-      "id": "stock-1763717376091",
-      "name": "英伟达",
-      "note": "",
-      "type": "STOCK",
-      "symbol": "NVDA",
-      "quantity": 1,
-      "costBasis": 0,
-      "totalValue": 180.64,
-      "currentPrice": 180.64
-    },
-    {
-      "id": "stock-1763717425342",
-      "name": "比特币",
-      "note": "",
-      "type": "STOCK",
-      "symbol": "BTC",
-      "quantity": 1,
-      "costBasis": 0,
-      "totalValue": 38.21,
-      "currentPrice": 38.21
-    },
-    {
-      "id": "crypto-1763717458663",
-      "name": "比特币",
-      "note": "",
-      "type": "CRYPTO",
-      "symbol": "BTC",
-      "quantity": 1,
-      "costBasis": 0,
-      "totalValue": 82127,
-      "currentPrice": 82127
-    },
-    {
-      "id": "crypto-1763717706633",
-      "name": "以太坊",
-      "note": "",
-      "type": "CRYPTO",
-      "symbol": "ETH",
-      "quantity": 1,
-      "costBasis": 0,
-      "totalValue": 2696.23,
-      "currentPrice": 2696.23
-    },
-    {
-      "id": "crypto-1763717749576",
-      "name": "比特币",
-      "note": "",
-      "type": "CRYPTO",
-      "symbol": "BTC",
-      "quantity": 2,
-      "costBasis": 0,
-      "totalValue": 164254,
-      "currentPrice": 82127
-    },
-    {
-      "id": "stock-1763718091793",
-      "name": "英伟达",
-      "note": "",
-      "type": "STOCK",
-      "symbol": "NVDA",
-      "quantity": 5,
-      "costBasis": 0,
-      "totalValue": 903.1999999999999,
-      "currentPrice": 180.64
+      "date": "2025-11-22",
+      "value": 3475635.7600000002
     }
   ]
 }
