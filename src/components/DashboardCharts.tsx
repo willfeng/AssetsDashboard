@@ -1,6 +1,6 @@
 "use client";
 
-import { Area, AreaChart, XAxis, YAxis, PieChart, Pie, Cell } from "recharts";
+import { Area, AreaChart, Line, LineChart, XAxis, YAxis, PieChart, Pie, Cell, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HistoricalDataPoint } from "@/types";
 import {
@@ -20,7 +20,7 @@ interface DashboardChartsProps {
 const chartConfig = {
     value: {
         label: "Value",
-        color: "hsl(var(--chart-1))",
+        color: "#2563eb",
     },
 } satisfies ChartConfig;
 
@@ -96,43 +96,40 @@ export default function DashboardCharts({ pieData, historyData }: DashboardChart
                     <div className="h-[350px] w-full">
                         {historyData.length > 0 ? (
                             <ChartContainer config={chartConfig} className="h-full w-full">
-                                <AreaChart
+                                <LineChart
                                     data={historyData}
                                     margin={{
                                         left: 12,
                                         right: 12,
                                     }}
                                 >
-                                    <defs>
-                                        <linearGradient id="fillValue" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.8} />
-                                            <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.1} />
-                                        </linearGradient>
-                                    </defs>
+                                    <CartesianGrid vertical={false} strokeDasharray="3 3" strokeOpacity={0.2} />
                                     <XAxis
                                         dataKey="date"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickMargin={8}
+                                        tickLine={true}
+                                        axisLine={true}
+                                        tickMargin={16}
                                         minTickGap={32}
                                     />
                                     <YAxis
-                                        tickLine={false}
-                                        axisLine={false}
+                                        width={80}
+                                        tickLine={true}
+                                        axisLine={true}
                                         tickFormatter={(value) => `$${value}`}
+                                        tick={{ textAnchor: 'start', dx: -75 }}
                                     />
                                     <ChartTooltip
                                         cursor={false}
-                                        content={<ChartTooltipContent indicator="dot" />}
+                                        content={<ChartTooltipContent indicator="line" />}
                                     />
-                                    <Area
+                                    <Line
                                         dataKey="value"
                                         type="natural"
-                                        fill="url(#fillValue)"
-                                        fillOpacity={0.4}
                                         stroke="var(--color-value)"
+                                        strokeWidth={2}
+                                        dot={false}
                                     />
-                                </AreaChart>
+                                </LineChart>
                             </ChartContainer>
                         ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">

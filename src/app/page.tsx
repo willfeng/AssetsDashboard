@@ -198,32 +198,33 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Middle: Key Metrics (NEW) */}
-            <div className="hidden md:flex gap-8 border-l pl-8 border-r pr-8">
-              <div className="space-y-1">
+            {/* Middle: Key Metrics (Responsive) */}
+            <div className="grid grid-cols-3 gap-4 md:gap-8 border-t md:border-t-0 md:border-l md:border-r pt-4 md:pt-0 md:px-8 mt-4 md:mt-0 w-full md:w-auto">
+              <div className="space-y-1 text-center md:text-left">
                 <p className="text-xs text-muted-foreground">Month High</p>
-                <p className="font-semibold">$1,280,000</p>
+                <p className="font-semibold text-sm md:text-base">$1,280,000</p>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-center md:text-left">
                 <p className="text-xs text-muted-foreground">Month Low</p>
-                <p className="font-semibold">$1,150,000</p>
+                <p className="font-semibold text-sm md:text-base">$1,150,000</p>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-center md:text-left">
                 <p className="text-xs text-muted-foreground">YTD</p>
-                <p className="font-semibold text-green-500">+15.4%</p>
+                <p className="font-semibold text-sm md:text-base text-green-500">+15.4%</p>
               </div>
             </div>
 
-            {/* Right: Return Overview (NEW) */}
-            <div className="flex flex-col gap-4 w-full md:w-[400px]">
-              <div className="flex items-center justify-end">
-                <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+            {/* Right: Return Overview */}
+            <div className="flex flex-col gap-4 w-full md:w-[400px] mt-4 md:mt-0">
+              <div className="flex items-center justify-between md:justify-end">
+                <span className="text-sm font-medium md:hidden">Range</span>
+                <div className="flex gap-1 bg-muted/50 p-1 rounded-lg overflow-x-auto">
                   {['1W', '1M', '1Y', '3Y', '5Y'].map((period) => (
                     <button
                       key={period}
                       onClick={() => setTimeRange(period)}
                       className={cn(
-                        "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                        "px-3 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap",
                         timeRange === period
                           ? "bg-background text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground hover:bg-background/50"
@@ -235,11 +236,11 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="flex flex-col items-end justify-center h-full pb-2">
-                <div className="text-5xl font-bold text-green-500 tracking-tight">
-                  {returnPct}
+                <div className={cn("text-4xl md:text-5xl font-bold tracking-tight", returnPct >= 0 ? "text-green-500" : "text-red-500")}>
+                  {returnPct > 0 ? "+" : ""}{returnPct}%
                 </div>
                 <div className="text-sm font-medium text-muted-foreground mt-1">
-                  {returnVal}
+                  {returnVal > 0 ? "+" : ""}${returnVal.toLocaleString()}
                 </div>
               </div>
             </div>
