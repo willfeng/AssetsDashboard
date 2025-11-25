@@ -59,15 +59,14 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
         defaultValues: initialData ? {
             name: initialData.name,
             balance: initialData.type === 'BANK' ? initialData.balance : 0,
-            currency: initialData.type === 'BANK' ? initialData.currency : "USD",
-            // Use type assertion or check for existence safely
+            currency: (initialData.type === 'BANK' ? initialData.currency : "USD") as "USD" | "HKD" | "CNY",
             symbol: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.symbol : "",
             quantity: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.quantity : 0,
-            apy: initialData.type === 'BANK' ? initialData.apy : 0
+            apy: initialData.type === 'BANK' ? (initialData.apy || 0) : 0
         } : {
             name: "",
             balance: 0,
-            currency: "USD",
+            currency: "USD" as "USD" | "HKD" | "CNY",
             symbol: "",
             quantity: 0,
             apy: 0
@@ -96,6 +95,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
     }, [open, initialData, form])
 
     const onSubmit = async (data: any) => {
+        console.log("Submitting form data:", data)
         setIsSubmitting(true)
         try {
             const payload = { ...data, type: activeTab }
@@ -115,16 +115,43 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                 body: JSON.stringify(payload),
             })
 
-            if (!res.ok) throw new Error('Failed to save asset')
+            let result;
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                result = await res.json();
+            } else {
+                const text = await res.text();
+                console.error("Non-JSON response:", text);
+                throw new Error(`Server error: ${res.status} ${res.statusText}`);
+            }
 
+            if (!res.ok) {
+                throw new Error(result.error || 'Failed to save asset')
+            }
+
+            console.log("Asset saved successfully, closing modal...")
+            setOpen(false) // Close first
+
+            // Reset form if adding new
+            if (!initialData) {
+                form.reset()
+            }
+
+            // Notify parent to refresh
             onAssetAdded()
-            setOpen(false)
-            if (!initialData) form.reset()
-        } catch (error) {
-            console.error(error)
+
+        } catch (error: any) {
+            console.error("Error in onSubmit:", error)
+            alert(`Error: ${error.message}`)
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    const onInvalid = (errors: any) => {
+        console.error("Validation errors:", errors)
+        const errorMessages = Object.values(errors).map((e: any) => e.message).join("\n")
+        alert(`Validation failed:\n${errorMessages}`)
     }
 
     const onTabChange = (value: string) => {
@@ -214,102 +241,102 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                     )}
 
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            {activeTab === "BANK" && (
-                                <>
-                                    <FormField
-                                        control={form.control}
-                                        name="name"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Bank Name</FormLabel>
-                                                <FormControl><Input placeholder="e.g. Chase Checking" {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="balance"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Balance</FormLabel>
-                                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="currency"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Currency</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="USD">USD</SelectItem>
-                                                        <SelectItem value="HKD">HKD</SelectItem>
-                                                        <SelectItem value="CNY">CNY</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="apy"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Interest Rate (APY %)</FormLabel>
-                                                <FormControl><Input type="number" placeholder="e.g. 4.5" {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </>
-                            )}
+                        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
+                            <div className="min-h-[340px] space-y-4">
+                                {activeTab === "BANK" && (
+                                    <>
+                                        <FormField
+                                            control={form.control}
+                                            name="name"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Bank Name</FormLabel>
+                                                    <FormControl><Input placeholder="e.g. Chase Checking" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="balance"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Balance</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="currency"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Currency</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl><SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger></FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="USD">USD</SelectItem>
+                                                            <SelectItem value="HKD">HKD</SelectItem>
+                                                            <SelectItem value="CNY">CNY</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="apy"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Interest Rate (APY %)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="e.g. 4.5" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </>
+                                )}
 
-                            {(activeTab === "STOCK" || activeTab === "CRYPTO") && (
-                                <>
-                                    <FormField
-                                        control={form.control}
-                                        name="name"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Name</FormLabel>
-                                                <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. Apple" : "e.g. Bitcoin"} {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="symbol"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Symbol</FormLabel>
-                                                <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. AAPL" : "e.g. BTC"} {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="quantity"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Quantity</FormLabel>
-                                                <FormControl><Input type="number" step="any" placeholder="0.00" {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    {/* Placeholder to keep height consistent if needed, or just let it be shorter */}
-                                    <div className="h-[72px] invisible" aria-hidden="true"></div>
-                                </>
-                            )}
+                                {(activeTab === "STOCK" || activeTab === "CRYPTO") && (
+                                    <>
+                                        <FormField
+                                            control={form.control}
+                                            name="name"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Name</FormLabel>
+                                                    <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. Apple" : "e.g. Bitcoin"} {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="symbol"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Symbol</FormLabel>
+                                                    <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. AAPL" : "e.g. BTC"} {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="quantity"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Quantity</FormLabel>
+                                                    <FormControl><Input type="number" step="any" placeholder="0.00" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </>
+                                )}
+                            </div>
 
                             <div className="flex justify-end pt-4">
                                 <Button type="submit" disabled={isSubmitting}>

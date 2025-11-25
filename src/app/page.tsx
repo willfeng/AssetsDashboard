@@ -35,24 +35,47 @@ export default function Dashboard() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
 
+  // Add Asset State (Controlled)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   const fetchAssets = useCallback(async () => {
     try {
       console.log("Fetching assets...");
       const res = await fetch('/api/assets');
+      if (!res.ok) {
+        if (res.status === 401) {
+          console.log("User not logged in");
+          setAssets([]);
+          return;
+        }
+        throw new Error(`API error: ${res.status}`);
+      }
       const data = await res.json();
-      setAssets(data);
+      if (Array.isArray(data)) {
+        setAssets(data);
+      } else {
+        console.error("Assets data is not an array:", data);
+        setAssets([]);
+      }
     } catch (error) {
       console.error("Failed to fetch assets:", error);
+      setAssets([]);
     }
   }, []);
 
   const fetchHistory = useCallback(async () => {
     try {
       const res = await fetch(`/api/history?range=${timeRange}`);
+      if (!res.ok) {
+        if (res.status === 401) return;
+        throw new Error(`API error: ${res.status}`);
+      }
       const data = await res.json();
-      setHistoryData(data.historyData);
-      setReturnPct(data.returnPct);
-      setReturnVal(data.returnVal);
+      if (data && Array.isArray(data.historyData)) {
+        setHistoryData(data.historyData);
+        setReturnPct(data.returnPct || 0);
+        setReturnVal(data.returnVal || 0);
+      }
     } catch (error) {
       console.error("Failed to fetch history:", error);
     }
@@ -137,7 +160,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-8 space-y-8" id="dashboard">
       <div className="flex justify-between items-center">
         <div className="space-y-1">
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
@@ -147,7 +170,10 @@ export default function Dashboard() {
             </p>
           )}
         </div>
+        <Button onClick={() => setIsAddModalOpen(true)}>Add Asset</Button>
         <AddAssetModal
+          open={isAddModalOpen}
+          onOpenChange={setIsAddModalOpen}
           onAssetAdded={() => {
             fetchAssets();
             fetchHistory();
@@ -249,10 +275,12 @@ export default function Dashboard() {
       </Card>
 
       {/* Middle Row: Charts */}
-      <DashboardCharts pieData={pieData} historyData={historyData} />
+      <div id="analytics">
+        <DashboardCharts pieData={pieData} historyData={historyData} isLoading={loading} />
+      </div>
 
       {/* Bottom Row: Asset Lists (3 Columns) */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3" id="assets">
         <Card>
           <CardHeader>
             <CardTitle>Bank Accounts</CardTitle>

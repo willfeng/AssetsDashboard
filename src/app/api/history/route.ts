@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getHistory } from '@/lib/history';
+import { getAuthenticatedUser } from '@/lib/auth-helper';
 
 export async function GET(request: Request) {
     try {
+        const user = await getAuthenticatedUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
         const range = searchParams.get('range') || '1M';
 
-        const historyData = await getHistory(range);
+        const historyData = await getHistory(user.id, range);
 
         // Calculate return (simple implementation)
         let returnPct = 0;

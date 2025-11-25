@@ -1,44 +1,64 @@
-import { getDb } from "./db";
-import { Asset } from "@/types";
+import { prisma } from "./prisma";
+import { MarketDataService } from "./market-data";
 
-export async function recordDailyHistory() {
-    const db = await getDb();
+export async function recordDailyHistoryWithTotal(userId: string) {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-    // Calculate total net worth
-    const totalValue = db.data.assets.reduce((sum: number, asset: Asset) => {
-        if (asset.type === 'BANK') {
-            return sum + asset.balance;
-        }
-        return sum + (asset.totalValue || 0);
-    }, 0);
-
-    // Check if entry exists for today
-    const existingIndex = db.data.history.findIndex(h => h.date === today);
-
-    if (existingIndex >= 0) {
-        // Update existing entry
-        db.data.history[existingIndex].value = totalValue;
-    } else {
-        // Add new entry
-        db.data.history.push({
-            date: today,
-            value: totalValue
+    try {
+        // 1. Fetch all user assets
+        const assets = await prisma.asset.findMany({
+            where: { userId }
         });
+
+        // 2. Calculate total worth
+        let totalWorth = 0;
+
+        for (const asset of assets) {
+            if (asset.type === 'BANK') {
+                totalWorth += asset.balance || 0;
+            } else if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
+                const quantity = asset.quantity || 0;
+                if (quantity > 0 && asset.symbol) {
+                    try {
+                        const price = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
+                        totalWorth += quantity * price;
+                    } catch (e) {
+                        console.warn(`Failed to fetch price for ${asset.symbol} during history recording`, e);
+                        // If price fetch fails, we might skip this asset or use 0. 
+                        // For now, we assume 0 value if price is unavailable to avoid crashing.
+                    }
+                }
+            }
+        }
+
+        // 3. Save to History
+        await prisma.history.upsert({
+            where: {
+                userId_date: {
+                    userId,
+                    date: today
+                }
+            },
+            update: {
+                value: totalWorth
+            },
+            create: {
+                userId,
+                date: today,
+                value: totalWorth
+            }
+        });
+
+        console.log(`Recorded history for ${userId} on ${today}: $${totalWorth}`);
+
+    } catch (error) {
+        console.error("Error recording daily history:", error);
+        // We don't throw here to avoid failing the parent request (e.g. Add Asset) 
+        // just because history recording failed.
     }
-
-    // Sort history by date
-    db.data.history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    await db.write();
-    console.log(`Recorded history for ${today}: $${totalValue}`);
 }
 
-export async function getHistory(range: string = '1M') {
-    const db = await getDb();
-    const history = db.data.history;
-
-    // Filter based on range (simplified logic)
+export async function getHistory(userId: string, range: string = '1M') {
     const now = new Date();
     let startDate = new Date();
 
@@ -55,6 +75,12 @@ export async function getHistory(range: string = '1M') {
         case '1Y':
             startDate.setFullYear(now.getFullYear() - 1);
             break;
+        case '3Y':
+            startDate.setFullYear(now.getFullYear() - 3);
+            break;
+        case '5Y':
+            startDate.setFullYear(now.getFullYear() - 5);
+            break;
         case 'ALL':
             startDate = new Date(0); // Beginning of time
             break;
@@ -62,5 +88,19 @@ export async function getHistory(range: string = '1M') {
             startDate.setMonth(now.getMonth() - 1);
     }
 
-    return history.filter(h => new Date(h.date) >= startDate);
+    const startDateStr = startDate.toISOString().split('T')[0];
+
+    const history = await prisma.history.findMany({
+        where: {
+            userId,
+            date: {
+                gte: startDateStr
+            }
+        },
+        orderBy: {
+            date: 'asc'
+        }
+    });
+
+    return history;
 }

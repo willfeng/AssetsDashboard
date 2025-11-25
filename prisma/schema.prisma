@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assets    Asset[]
+  history   History[]
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      String   // BANK, STOCK, CRYPTO
+  name      String
+  
+  // Bank specific
+  balance   Float?
+  currency  String?  // USD, HKD, CNY
+  apy       Float?
+
+  // Stock/Crypto specific
+  symbol    String?
+  quantity  Float?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model History {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date      String   // YYYY-MM-DD
+  value     Float
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, date]) // One entry per user per day
+}

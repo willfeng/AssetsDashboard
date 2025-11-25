@@ -15,6 +15,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"
 interface DashboardChartsProps {
     pieData: { name: string; value: number }[];
     historyData: HistoricalDataPoint[];
+    isLoading: boolean;
 }
 
 const chartConfig = {
@@ -30,7 +31,7 @@ const pieConfig = {
     },
 } satisfies ChartConfig;
 
-export default function DashboardCharts({ pieData, historyData }: DashboardChartsProps) {
+export default function DashboardCharts({ pieData, historyData, isLoading }: DashboardChartsProps) {
     return (
         <div className="grid gap-4 md:grid-cols-3">
             <Card className="col-span-1 flex flex-col">
@@ -39,7 +40,11 @@ export default function DashboardCharts({ pieData, historyData }: DashboardChart
                 </CardHeader>
                 <CardContent className="flex-1 pb-0">
                     <div className="h-[250px]">
-                        {pieData.length > 0 ? (
+                        {isLoading ? (
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
+                                Loading allocation...
+                            </div>
+                        ) : pieData.length > 0 ? (
                             <ChartContainer config={pieConfig} className="mx-auto aspect-square max-h-[250px]">
                                 <PieChart>
                                     <ChartTooltip
@@ -65,26 +70,28 @@ export default function DashboardCharts({ pieData, historyData }: DashboardChart
                             </ChartContainer>
                         ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
-                                Loading allocation...
+                                No allocation data
                             </div>
                         )}
                     </div>
-                    <div className="mt-4 space-y-3">
-                        {pieData.map((entry, index) => (
-                            <div key={entry.name} className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-2">
-                                    <div
-                                        className="h-3 w-3 rounded-full"
-                                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                                    />
-                                    <span className="text-muted-foreground">{entry.name}</span>
+                    {!isLoading && pieData.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                            {pieData.map((entry, index) => (
+                                <div key={entry.name} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <div
+                                            className="h-3 w-3 rounded-full"
+                                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                        />
+                                        <span className="text-muted-foreground">{entry.name}</span>
+                                    </div>
+                                    <div className="font-medium">
+                                        ${entry.value.toLocaleString()}
+                                    </div>
                                 </div>
-                                <div className="font-medium">
-                                    ${entry.value.toLocaleString()}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -94,7 +101,11 @@ export default function DashboardCharts({ pieData, historyData }: DashboardChart
                 </CardHeader>
                 <CardContent className="flex-1 pl-2">
                     <div className="h-[350px] w-full">
-                        {historyData.length > 0 ? (
+                        {isLoading ? (
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
+                                Loading trend data...
+                            </div>
+                        ) : historyData.length > 0 ? (
                             <ChartContainer config={chartConfig} className="h-full w-full">
                                 <LineChart
                                     data={historyData}
@@ -133,7 +144,7 @@ export default function DashboardCharts({ pieData, historyData }: DashboardChart
                             </ChartContainer>
                         ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
-                                Loading trend data...
+                                No trend data available
                             </div>
                         )}
                     </div>

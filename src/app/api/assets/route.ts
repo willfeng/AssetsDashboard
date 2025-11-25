@@ -1,18 +1,68 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import { Asset } from '@/types';
+import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { MarketDataService } from '@/lib/market-data';
+import { recordDailyHistoryWithTotal } from '@/lib/history';
 
 export async function GET() {
-    const db = await getDb();
-    return NextResponse.json(db.data.assets);
+    try {
+        const user = await getAuthenticatedUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const assets = await prisma.asset.findMany({
+            where: { userId: user.id },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // Enrich with market data (prices)
+        const enrichedAssets = await Promise.all(assets.map(async (asset: any) => {
+            let currentPrice = 0;
+            let totalValue = 0;
+            let change24h = 0;
+
+            if (asset.type === 'BANK') {
+                totalValue = asset.balance || 0;
+            } else if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
+                try {
+                    if (asset.symbol) {
+                        currentPrice = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
+                        totalValue = (asset.quantity || 0) * currentPrice;
+                    }
+                } catch (e) {
+                    console.error(`Failed to fetch price for ${asset.symbol}`, e);
+                }
+            }
+
+            return {
+                ...asset,
+                type: asset.type as any,
+                balance: asset.balance || 0,
+                quantity: asset.quantity || 0,
+                currency: asset.currency || 'USD',
+                currentPrice,
+                totalValue,
+                change24h
+            };
+        }));
+
+        return NextResponse.json(enrichedAssets);
+    } catch (error: any) {
+        console.error("Error fetching assets:", error);
+        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    }
 }
 
 export async function POST(request: Request) {
     try {
+        const user = await getAuthenticatedUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
 
-        // Basic validation
         if (!body.type || !body.name) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
@@ -20,41 +70,45 @@ export async function POST(request: Request) {
             );
         }
 
-        const newAsset: Asset = {
-            id: `${body.type.toLowerCase()}-${Date.now()}`,
-            ...body,
-            // Calculate total value for investments if not provided
-            totalValue: body.type === 'BANK'
-                ? body.balance
-                : (body.quantity * (body.currentPrice || 0)) // Price will be 0 initially until market data integration
-        };
+        const newAsset = await prisma.asset.create({
+            data: {
+                userId: user.id,
+                type: body.type,
+                name: body.name,
+                balance: body.balance,
+                currency: body.currency,
+                apy: body.apy,
+                symbol: body.symbol,
+                quantity: body.quantity,
+            }
+        });
 
-        // Fetch real-time price for investments
-        if (newAsset.type === 'STOCK' || newAsset.type === 'CRYPTO') {
-            if (!newAsset.currentPrice) {
+        let currentPrice = 0;
+        let totalValue = 0;
+
+        if (newAsset.type === 'BANK') {
+            totalValue = newAsset.balance || 0;
+        } else {
+            if (newAsset.symbol) {
                 try {
-                    const price = await MarketDataService.getAssetPrice(
-                        newAsset.symbol!,
-                        newAsset.type
-                    );
-                    if (price > 0) {
-                        newAsset.currentPrice = price;
-                        newAsset.totalValue = newAsset.quantity * price;
-                    } else {
-                        console.warn(`Could not fetch price for ${newAsset.symbol}`);
-                    }
+                    currentPrice = await MarketDataService.getAssetPrice(newAsset.symbol, newAsset.type as any);
+                    totalValue = (newAsset.quantity || 0) * currentPrice;
                 } catch (e) {
-                    console.error("Price fetch failed:", e);
+                    console.warn(`Could not fetch price for ${newAsset.symbol}`);
                 }
             }
         }
 
-        const db = await getDb();
-        db.data.assets.push(newAsset);
-        await db.write();
+        await recordDailyHistoryWithTotal(user.id);
 
-        return NextResponse.json(newAsset, { status: 201 });
-    } catch (error) {
+        return NextResponse.json({
+            ...newAsset,
+            currentPrice,
+            totalValue,
+            change24h: 0
+        }, { status: 201 });
+
+    } catch (error: any) {
         console.error("Error creating asset:", error);
         return NextResponse.json(
             { error: 'Failed to create asset' },
@@ -63,48 +117,13 @@ export async function POST(request: Request) {
     }
 }
 
-export async function PATCH() {
-    let updatedCount = 0;
-    try {
-        const db = await getDb();
-        for (const asset of db.data.assets) {
-            if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
-                try {
-                    const price = await MarketDataService.getAssetPrice(
-                        asset.symbol!,
-                        asset.type
-                    );
-                    if (price > 0 && price !== asset.currentPrice) {
-                        asset.currentPrice = price;
-                        asset.totalValue = asset.quantity * price;
-                        updatedCount++;
-                    }
-                } catch (e) {
-                    console.error(`Failed to refresh price for ${asset.symbol}:`, e);
-                }
-            }
-        }
-
-        if (updatedCount > 0) {
-            await db.write();
-        }
-
-        return NextResponse.json({
-            success: true,
-            updatedCount,
-            assets: db.data.assets
-        });
-    } catch (error) {
-        console.error("Error refreshing assets:", error);
-        return NextResponse.json(
-            { error: 'Failed to refresh assets' },
-            { status: 500 }
-        );
-    }
-}
-
 export async function DELETE(request: Request) {
     try {
+        const user = await getAuthenticatedUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
@@ -112,17 +131,22 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Asset ID is required' }, { status: 400 });
         }
 
-        const db = await getDb();
-        const initialLength = db.data.assets.length;
-        db.data.assets = db.data.assets.filter(asset => asset.id !== id);
+        const asset = await prisma.asset.findUnique({
+            where: { id },
+        });
 
-        if (db.data.assets.length < initialLength) {
-            await db.write();
-            return NextResponse.json({ success: true });
-        } else {
-            return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+        if (!asset || asset.userId !== user.id) {
+            return NextResponse.json({ error: 'Asset not found or unauthorized' }, { status: 404 });
         }
-    } catch (error) {
+
+        await prisma.asset.delete({
+            where: { id },
+        });
+
+        await recordDailyHistoryWithTotal(user.id);
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
         console.error("Error deleting asset:", error);
         return NextResponse.json({ error: 'Failed to delete asset' }, { status: 500 });
     }
@@ -130,6 +154,11 @@ export async function DELETE(request: Request) {
 
 export async function PUT(request: Request) {
     try {
+        const user = await getAuthenticatedUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { id, ...updates } = body;
 
@@ -137,38 +166,30 @@ export async function PUT(request: Request) {
             return NextResponse.json({ error: 'Asset ID is required' }, { status: 400 });
         }
 
-        const db = await getDb();
-        const assetIndex = db.data.assets.findIndex(a => a.id === id);
+        const existingAsset = await prisma.asset.findUnique({
+            where: { id },
+        });
 
-        if (assetIndex === -1) {
-            return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+        if (!existingAsset || existingAsset.userId !== user.id) {
+            return NextResponse.json({ error: 'Asset not found or unauthorized' }, { status: 404 });
         }
 
-        const asset = db.data.assets[assetIndex];
-
-        // Update fields
-        const updatedAsset = { ...asset, ...updates };
-
-        // Recalculate totalValue if quantity or price changed
-        if (updatedAsset.type === 'BANK') {
-            // For bank, balance is the value
-            if (updates.balance !== undefined) {
-                updatedAsset.balance = updates.balance;
+        const updatedAsset = await prisma.asset.update({
+            where: { id },
+            data: {
+                name: updates.name,
+                balance: updates.balance,
+                quantity: updates.quantity,
+                currency: updates.currency,
+                apy: updates.apy,
+                symbol: updates.symbol,
             }
-        } else {
-            // For stock/crypto
-            if (updates.quantity !== undefined || updates.currentPrice !== undefined) {
-                // If price wasn't provided in update, use existing
-                const price = updates.currentPrice || asset.currentPrice || 0;
-                updatedAsset.totalValue = updatedAsset.quantity * price;
-            }
-        }
+        });
 
-        db.data.assets[assetIndex] = updatedAsset;
-        await db.write();
+        await recordDailyHistoryWithTotal(user.id);
 
         return NextResponse.json(updatedAsset);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error updating asset:", error);
         return NextResponse.json({ error: 'Failed to update asset' }, { status: 500 });
     }

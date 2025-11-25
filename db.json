@@ -28,8 +28,8 @@
       "symbol": "BTC",
       "quantity": 1,
       "costBasis": 0,
-      "totalValue": 83921,
-      "currentPrice": 83921
+      "totalValue": 84572,
+      "currentPrice": 84572
     },
     {
       "id": "crypto-1763698848459",
@@ -39,8 +39,8 @@
       "symbol": "ETH",
       "quantity": 1,
       "costBasis": 0,
-      "totalValue": 2732.4,
-      "currentPrice": 2732.4
+      "totalValue": 2759.37,
+      "currentPrice": 2759.37
     },
     {
       "id": "stock-1763698889628",
@@ -90,8 +90,8 @@
       "symbol": "SOL",
       "quantity": 5,
       "costBasis": 0,
-      "totalValue": 629.15,
-      "currentPrice": 125.83
+      "totalValue": 638.35,
+      "currentPrice": 127.67
     }
   ],
   "history": [
@@ -101,7 +101,7 @@
     },
     {
       "date": "2025-11-22",
-      "value": 3474823.87
+      "value": 3475511.0400000005
     }
   ]
 }
