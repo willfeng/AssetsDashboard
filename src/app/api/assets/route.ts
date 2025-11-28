@@ -15,6 +15,7 @@ export async function GET() {
             where: { userId: user.id },
             orderBy: { createdAt: 'desc' }
         });
+        console.log(`[API] Fetching assets for ${user.id}. Found: ${assets.length}`);
 
         // Enrich with market data (prices)
         const enrichedAssets = await Promise.all(assets.map(async (asset: any) => {
@@ -27,7 +28,9 @@ export async function GET() {
             } else if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
                 try {
                     if (asset.symbol) {
-                        currentPrice = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
+                        const marketData = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
+                        currentPrice = marketData.price;
+                        change24h = marketData.change24h;
                         totalValue = (asset.quantity || 0) * currentPrice;
                     }
                 } catch (e) {
@@ -85,13 +88,16 @@ export async function POST(request: Request) {
 
         let currentPrice = 0;
         let totalValue = 0;
+        let change24h = 0;
 
         if (newAsset.type === 'BANK') {
             totalValue = newAsset.balance || 0;
         } else {
             if (newAsset.symbol) {
                 try {
-                    currentPrice = await MarketDataService.getAssetPrice(newAsset.symbol, newAsset.type as any);
+                    const marketData = await MarketDataService.getAssetPrice(newAsset.symbol, newAsset.type as any);
+                    currentPrice = marketData.price;
+                    change24h = marketData.change24h;
                     totalValue = (newAsset.quantity || 0) * currentPrice;
                 } catch (e) {
                     console.warn(`Could not fetch price for ${newAsset.symbol}`);
@@ -105,7 +111,7 @@ export async function POST(request: Request) {
             ...newAsset,
             currentPrice,
             totalValue,
-            change24h: 0
+            change24h
         }, { status: 201 });
 
     } catch (error: any) {

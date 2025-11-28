@@ -1,6 +1,6 @@
 "use client";
 
-import { Area, AreaChart, Line, LineChart, XAxis, YAxis, PieChart, Pie, Cell, CartesianGrid } from "recharts";
+import { Area, AreaChart, Line, LineChart, XAxis, YAxis, PieChart, Pie, Cell, CartesianGrid, Label } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HistoricalDataPoint } from "@/types";
 import {
@@ -32,6 +32,15 @@ const pieConfig = {
 } satisfies ChartConfig;
 
 export default function DashboardCharts({ pieData, historyData, isLoading }: DashboardChartsProps) {
+    const totalValue = pieData.reduce((acc, curr) => acc + curr.value, 0);
+
+    // Custom Colors
+    const COLORS = {
+        "Cash": "#10b981",   // Emerald-500
+        "Stock": "#6366f1",  // Indigo-500
+        "Crypto": "#8b5cf6", // Violet-500
+    };
+
     return (
         <div className="grid gap-4 md:grid-cols-3">
             <Card className="col-span-1 flex flex-col">
@@ -39,35 +48,67 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
                     <CardTitle>Asset Allocation</CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 pb-0">
-                    <div className="h-[250px]">
+                    <div className="h-[250px] relative">
                         {isLoading ? (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
                                 Loading allocation...
                             </div>
                         ) : pieData.length > 0 ? (
-                            <ChartContainer config={pieConfig} className="mx-auto aspect-square max-h-[250px]">
-                                <PieChart>
-                                    <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent hideLabel />}
-                                    />
-                                    <Pie
-                                        data={pieData}
-                                        dataKey="value"
-                                        nameKey="name"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                    >
-                                        {pieData.map((entry, index) => (
-                                            <Cell
-                                                key={`cell-${index}`}
-                                                fill={COLORS[index % COLORS.length]}
+                            <div className="flex flex-col h-full">
+                                <ChartContainer config={pieConfig} className="mx-auto aspect-square max-h-[250px] w-full flex-1">
+                                    <PieChart>
+                                        <ChartTooltip
+                                            cursor={false}
+                                            content={<ChartTooltipContent hideLabel />}
+                                        />
+                                        <Pie
+                                            data={pieData}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            innerRadius={60}
+                                            outerRadius={85}
+                                            paddingAngle={2}
+                                            stroke="none"
+                                        >
+                                            {pieData.map((entry, index) => (
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={COLORS[entry.name as keyof typeof COLORS] || "#8884d8"}
+                                                />
+                                            ))}
+                                            <Label
+                                                content={({ viewBox }) => {
+                                                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                                        return (
+                                                            <text
+                                                                x={viewBox.cx}
+                                                                y={viewBox.cy}
+                                                                textAnchor="middle"
+                                                                dominantBaseline="middle"
+                                                            >
+                                                                <tspan
+                                                                    x={viewBox.cx}
+                                                                    y={viewBox.cy}
+                                                                    className="fill-foreground text-2xl font-bold"
+                                                                >
+                                                                    ${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                                </tspan>
+                                                                <tspan
+                                                                    x={viewBox.cx}
+                                                                    y={(viewBox.cy || 0) + 24}
+                                                                    className="fill-muted-foreground text-xs"
+                                                                >
+                                                                    Total Net Worth
+                                                                </tspan>
+                                                            </text>
+                                                        )
+                                                    }
+                                                }}
                                             />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                            </ChartContainer>
+                                        </Pie>
+                                    </PieChart>
+                                </ChartContainer>
+                            </div>
                         ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
                                 No allocation data
@@ -76,20 +117,26 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
                     </div>
                     {!isLoading && pieData.length > 0 && (
                         <div className="mt-4 space-y-3">
-                            {pieData.map((entry, index) => (
-                                <div key={entry.name} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className="h-3 w-3 rounded-full"
-                                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                                        />
-                                        <span className="text-muted-foreground">{entry.name}</span>
+                            {pieData.map((entry) => {
+                                const percentage = ((entry.value / totalValue) * 100).toFixed(1);
+                                return (
+                                    <div key={entry.name} className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                className="h-3 w-3 rounded-full"
+                                                style={{ backgroundColor: COLORS[entry.name as keyof typeof COLORS] || "#8884d8" }}
+                                            />
+                                            <span className="text-muted-foreground">{entry.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="font-bold">{percentage}%</span>
+                                            <span className="text-muted-foreground w-20 text-right">
+                                                ${entry.value.toLocaleString()}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="font-medium">
-                                        ${entry.value.toLocaleString()}
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </CardContent>

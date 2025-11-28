@@ -7,6 +7,7 @@ import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, DollarSign, Wal
 import { cn } from "@/lib/utils";
 import { Asset, HistoricalDataPoint } from "@/types";
 import { AddAssetModal } from "@/components/AddAssetModal";
+import ConnectExchangeModal from "@/components/ConnectExchangeModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +38,8 @@ export default function Dashboard() {
 
   // Add Asset State (Controlled)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -96,19 +99,67 @@ export default function Dashboard() {
     }
   }, [fetchHistory]);
 
+  // Auto-Sync Logic
+  const checkAutoSync = useCallback(async () => {
+    try {
+      const res = await fetch('/api/integrations');
+      if (!res.ok) return;
+
+      const integrations = await res.json();
+      if (!Array.isArray(integrations)) return;
+
+      const activeIntegrations = integrations.filter((i: any) => i.isActive);
+      if (activeIntegrations.length === 0) return;
+
+      // Check if any integration needs sync (lastSync > 1 min ago or null)
+      const now = new Date();
+      const needsSync = activeIntegrations.some((i: any) => {
+        if (!i.lastSync) return true;
+        const lastSyncTime = new Date(i.lastSync);
+        const diffMinutes = (now.getTime() - lastSyncTime.getTime()) / 1000 / 60;
+        return diffMinutes > 1;
+      });
+
+      if (needsSync) {
+        console.log("Auto-sync triggered...");
+        setIsSyncing(true);
+
+        // Sync each provider
+        for (const integration of activeIntegrations) {
+          await fetch('/api/integrations/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider: integration.provider })
+          });
+        }
+
+        // Refresh data
+        await fetchAssets();
+        await fetchHistory();
+        setLastUpdated(new Date());
+        setIsSyncing(false);
+        console.log("Auto-sync completed.");
+      }
+    } catch (error) {
+      console.error("Auto-sync failed:", error);
+      setIsSyncing(false);
+    }
+  }, [fetchAssets, fetchHistory]);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([fetchAssets(), fetchHistory()]);
-      setLastUpdated(new Date());
+      await fetchAssets();
+      await fetchHistory();
+      await checkAutoSync();
       setLoading(false);
     };
     init();
 
-    // Auto-refresh every 5 minutes (300,000 ms)
-    const intervalId = setInterval(refreshPrices, 300000);
-    return () => clearInterval(intervalId);
-  }, [fetchAssets, fetchHistory, refreshPrices]);
+    // Poll for price updates every 5 minutes
+    const interval = setInterval(refreshPrices, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchAssets, fetchHistory, refreshPrices, checkAutoSync]);
 
   // Handlers
   const handleEdit = (asset: Asset) => {
@@ -164,21 +215,38 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div className="space-y-1">
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          {lastUpdated && (
-            <p className="text-xs text-muted-foreground">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
+          <div className="flex items-center gap-4">
+            {isSyncing && (
+              <div className="flex items-center gap-2 text-sm text-blue-500 animate-pulse">
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                Syncing assets...
+              </div>
+            )}
+            {lastUpdated && (
+              <p className="text-sm text-muted-foreground">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
+          </div>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>Add Asset</Button>
-        <AddAssetModal
-          open={isAddModalOpen}
-          onOpenChange={setIsAddModalOpen}
-          onAssetAdded={() => {
-            fetchAssets();
-            fetchHistory();
-          }}
-        />
+        <div className="flex items-center gap-2">
+          <ConnectExchangeModal
+            onConnected={() => {
+              fetchAssets();
+              fetchHistory();
+            }}
+          />
+          <AddAssetModal
+            open={isAddModalOpen}
+            onOpenChange={setIsAddModalOpen}
+            trigger={<Button>Add Asset</Button>}
+            onAssetAdded={() => {
+              fetchAssets();
+              fetchHistory();
+              setIsAddModalOpen(false);
+            }}
+          />
+        </div>
 
         {/* Hidden Edit Modal - Controlled */}
         <AddAssetModal
@@ -332,7 +400,7 @@ export default function Dashboard() {
                         ${asset.totalValue?.toLocaleString()}
                       </div>
                       <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
-                        {asset.change24h > 0 ? "+" : ""}{asset.change24h}%
+                        {asset.change24h > 0 ? "+" : ""}{Number(asset.change24h).toFixed(2)}%
                       </p>
                     </div>
                     <AssetActions asset={asset} />
@@ -353,7 +421,7 @@ export default function Dashboard() {
                 <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {asset.symbol}
+                      {asset.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {asset.quantity} coins
@@ -365,7 +433,7 @@ export default function Dashboard() {
                         ${asset.totalValue?.toLocaleString()}
                       </div>
                       <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
-                        {asset.change24h > 0 ? "+" : ""}{asset.change24h}%
+                        {asset.change24h > 0 ? "+" : ""}{Number(asset.change24h).toFixed(2)}%
                       </p>
                     </div>
                     <AssetActions asset={asset} />

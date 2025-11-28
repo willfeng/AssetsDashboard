@@ -2,6 +2,7 @@
 
 interface CacheItem {
     price: number;
+    change24h?: number;
     timestamp: number;
 }
 
@@ -9,41 +10,37 @@ const CACHE_DURATION = 30 * 1000; // 30 seconds for demo purposes
 const priceCache = new Map<string, CacheItem>();
 
 export const MarketDataService = {
-    async getAssetPrice(symbol: string, type: 'STOCK' | 'CRYPTO'): Promise<number> {
+    async getAssetPrice(symbol: string, type: 'STOCK' | 'CRYPTO'): Promise<{ price: number, change24h: number }> {
         const cacheKey = `${type}:${symbol}`;
         const cached = priceCache.get(cacheKey);
 
         if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
             console.log(`[MarketData] Cache HIT for ${symbol} (${cached.price})`);
-            return cached.price;
+            return { price: cached.price, change24h: cached.change24h || 0 };
         }
 
         console.log(`[MarketData] Cache MISS for ${symbol} (${type}) - Fetching...`);
-        let price = 0;
+        let result = { price: 0, change24h: 0 };
 
         try {
             if (type === 'STOCK') {
-                price = await this.getStockPrice(symbol);
+                result = await this.getStockPrice(symbol);
             } else if (type === 'CRYPTO') {
-                price = await this.getCryptoPrice(symbol);
+                result = await this.getCryptoPrice(symbol);
             }
 
-            if (price > 0) {
-                priceCache.set(cacheKey, { price, timestamp: Date.now() });
+            if (result.price > 0) {
+                priceCache.set(cacheKey, { ...result, timestamp: Date.now() });
             }
         } catch (error) {
             console.error(`[MarketData] Error fetching price for ${symbol}:`, error);
-            // Return 0 or throw, depending on desired behavior. 
-            // For now, returning 0 allows the asset to be created without a price (user can edit later if we add that feature)
-            // or we can just let the error propagate if we want to fail the request.
-            // Let's return 0 to be safe for the demo.
-            return 0;
+            return { price: 0, change24h: 0 };
         }
 
-        return price;
+        return result;
     },
 
-    async getStockPrice(symbol: string): Promise<number> {
+    async getStockPrice(symbol: string): Promise<{ price: number, change24h: number }> {
         try {
             console.log(`[MarketData] Fetching stock price for ${symbol}`);
             const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`);
@@ -51,47 +48,51 @@ export const MarketDataService = {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
-            console.log(`[MarketData] Price for ${symbol}:`, price);
-            return price || 0;
+            const meta = data.chart?.result?.[0]?.meta;
+            const price = meta?.regularMarketPrice || 0;
+            const previousClose = meta?.chartPreviousClose || meta?.previousClose || price;
+
+            // Try to get direct change percent if available, otherwise calculate
+            // Note: Yahoo Chart API 'meta' usually has previousClose, but maybe not explicit change percent.
+            // Calculation is robust: (current - prev) / prev * 100
+            let change24h = 0;
+            if (previousClose > 0) {
+                change24h = ((price - previousClose) / previousClose) * 100;
+            }
+
+            console.log(`[MarketData] Price for ${symbol}: ${price}, Change: ${change24h.toFixed(2)}%`);
+            return { price, change24h };
         } catch (error) {
             console.error(`[MarketData] Yahoo Finance error for ${symbol}:`, error);
-            return 0;
+            return { price: 0, change24h: 0 };
         }
     },
 
-    async getCryptoPrice(symbol: string): Promise<number> {
-        // CoinGecko API requires ID, not symbol (e.g. 'bitcoin' not 'BTC').
-        // For a real app, we'd need a mapping or a search step.
-        // For this demo, we'll try to map common symbols or use the symbol as id if not found.
-        const id = this.mapSymbolToCoinGeckoId(symbol);
+    async getCryptoPrice(symbol: string): Promise<{ price: number, change24h: number }> {
+        // Binance API expects symbols like BTCUSDT
+        const pair = `${symbol.toUpperCase()}USDT`;
 
         try {
-            const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
-            if (!response.ok) throw new Error(`CoinGecko API error: ${response.statusText}`);
+            console.log(`[MarketData] Fetching crypto price for ${pair} from Binance`);
+            // Use 24hr ticker to get both price and change
+            const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`);
+
+            if (!response.ok) {
+                if (symbol.toUpperCase() === 'USDT' || symbol.toUpperCase() === 'USDC') {
+                    return { price: 1.0, change24h: 0 };
+                }
+                throw new Error(`Binance API error: ${response.statusText}`);
+            }
 
             const data = await response.json();
-            return data[id]?.usd || 0;
-        } catch (error) {
-            console.error(`[MarketData] CoinGecko error for ${symbol}:`, error);
-            return 0;
-        }
-    },
+            const price = parseFloat(data.lastPrice);
+            const change24h = parseFloat(data.priceChangePercent);
 
-    mapSymbolToCoinGeckoId(symbol: string): string {
-        const s = symbol.toLowerCase();
-        const map: Record<string, string> = {
-            'btc': 'bitcoin',
-            'eth': 'ethereum',
-            'sol': 'solana',
-            'doge': 'dogecoin',
-            'usdt': 'tether',
-            'bnb': 'binancecoin',
-            'xrp': 'ripple',
-            'ada': 'cardano',
-            'avax': 'avalanche-2',
-            'dot': 'polkadot'
-        };
-        return map[s] || s;
+            console.log(`[MarketData] Price for ${pair}: ${price}, Change: ${change24h}%`);
+            return { price, change24h };
+        } catch (error) {
+            console.error(`[MarketData] Binance error for ${pair}:`, error);
+            return { price: 0, change24h: 0 };
+        }
     }
 };

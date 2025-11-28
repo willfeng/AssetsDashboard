@@ -20,8 +20,8 @@ export async function recordDailyHistoryWithTotal(userId: string) {
                 const quantity = asset.quantity || 0;
                 if (quantity > 0 && asset.symbol) {
                     try {
-                        const price = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
-                        totalWorth += quantity * price;
+                        const marketData = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
+                        totalWorth += quantity * marketData.price;
                     } catch (e) {
                         console.warn(`Failed to fetch price for ${asset.symbol} during history recording`, e);
                         // If price fetch fails, we might skip this asset or use 0. 

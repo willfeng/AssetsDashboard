@@ -17,6 +17,7 @@ model User {
 
   assets    Asset[]
   history   History[]
+  integrations Integration[]
 }
 
 model Asset {
@@ -51,4 +52,22 @@ model History {
   createdAt DateTime @default(now())
   
   @@unique([userId, date]) // One entry per user per day
+}
+
+model Integration {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider  String   // e.g., "BINANCE"
+  apiKey    String   // Encrypted
+  apiSecret String   // Encrypted
+  
+  isActive  Boolean  @default(true)
+  lastSync  DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
 }
