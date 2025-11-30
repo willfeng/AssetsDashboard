@@ -1,0 +1,15 @@
+Starting sync debug...
+Found integration: cmik30gux0003xdi92d6a24z3
+API Key: BkcR***
+Connecting to Binance with Proxy (127.0.0.1:7890)...
+Sync Error: binance GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1764423813416&recvWindow=10000&signature=8f76d92570f0975572678a7d369440469d8b58dd93a652ec6e0e5b21c4f52cee fetch failed
+Stack: NetworkError: binance GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1764423813416&recvWindow=10000&signature=8f76d92570f0975572678a7d369440469d8b58dd93a652ec6e0e5b21c4f52cee fetch failed
+    at binance.fetch (file:///D:/AI/AssetsDashboard/node_modules/ccxt/js/src/base/Exchange.js:745:23)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async binance.fetch2 (file:///D:/AI/AssetsDashboard/node_modules/ccxt/js/src/base/Exchange.js:4807:24)
+    at async binance.request (file:///D:/AI/AssetsDashboard/node_modules/ccxt/js/src/binance.js:12337:26)
+    at async Promise.all (index 0)
+    at async binance.fetchCurrencies (file:///D:/AI/AssetsDashboard/node_modules/ccxt/js/src/binance.js:2880:25)
+    at async binance.loadMarketsHelper (file:///D:/AI/AssetsDashboard/node_modules/ccxt/js/src/base/Exchange.js:826:26)
+    at async binance.fetchBalance (file:///D:/AI/AssetsDashboard/node_modules/ccxt/js/src/binance.js:3738:9)
+    at async main (file:///D:/AI/AssetsDashboard/debug-sync.ts:79:13)

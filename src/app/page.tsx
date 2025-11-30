@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import dynamic from "next/dynamic";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, DollarSign, Wallet, Bitcoin, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Asset, HistoricalDataPoint } from "@/types";
+import { AssetList } from "@/components/AssetList";
+import { ConnectionManagerModal } from "@/components/ConnectionManagerModal";
 import { AddAssetModal } from "@/components/AddAssetModal";
-import ConnectExchangeModal from "@/components/ConnectExchangeModal";
+import { Asset, HistoricalDataPoint } from "@/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,7 +130,7 @@ export default function Dashboard() {
           await fetch('/api/integrations/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ provider: integration.provider })
+            body: JSON.stringify({ integrationId: integration.id })
           });
         }
 
@@ -199,16 +200,7 @@ export default function Dashboard() {
 
   const pieData = Object.entries(allocation).map(([name, value]) => ({ name, value }));
 
-  const AssetActions = ({ asset }: { asset: Asset }) => (
-    <div className="flex items-center gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(asset)}>
-        <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
-      </Button>
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(asset.id!)}>
-        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-      </Button>
-    </div>
-  );
+
 
   return (
     <div className="p-8 space-y-8" id="dashboard">
@@ -230,8 +222,8 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ConnectExchangeModal
-            onConnected={() => {
+          <ConnectionManagerModal
+            onChanged={() => {
               fetchAssets();
               fetchHistory();
             }}
@@ -348,102 +340,11 @@ export default function Dashboard() {
       </div>
 
       {/* Bottom Row: Asset Lists (3 Columns) */}
-      <div className="grid gap-4 md:grid-cols-3" id="assets">
-        <Card>
-          <CardHeader>
-            <CardTitle>Bank Accounts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {assets.filter((a) => a.type === "BANK").map((asset: any) => (
-                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {asset.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {asset.currency}
-                    </p>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="font-medium">
-                      {asset.currency === "USD" ? "$" : "HK$"}
-                      {asset.balance?.toLocaleString()}
-                    </div>
-                    <AssetActions asset={asset} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Stocks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {assets.filter((a) => a.type === "STOCK").map((asset: any) => (
-                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {asset.symbol}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {asset.quantity} shares
-                    </p>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="text-right">
-                      <div className="font-medium">
-                        ${asset.totalValue?.toLocaleString()}
-                      </div>
-                      <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
-                        {asset.change24h > 0 ? "+" : ""}{Number(asset.change24h).toFixed(2)}%
-                      </p>
-                    </div>
-                    <AssetActions asset={asset} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Crypto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {assets.filter((a) => a.type === "CRYPTO").map((asset: any) => (
-                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {asset.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {asset.quantity} coins
-                    </p>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="text-right">
-                      <div className="font-medium">
-                        ${asset.totalValue?.toLocaleString()}
-                      </div>
-                      <p className={cn("text-xs", asset.change24h >= 0 ? "text-green-500" : "text-red-500")}>
-                        {asset.change24h > 0 ? "+" : ""}{Number(asset.change24h).toFixed(2)}%
-                      </p>
-                    </div>
-                    <AssetActions asset={asset} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <AssetList
+        assets={assets}
+        onEdit={handleEdit}
+        onDelete={handleDeleteClick}
+      />
     </div>
   );
 }

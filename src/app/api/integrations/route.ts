@@ -12,9 +12,9 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { provider, apiKey, apiSecret } = body;
+        const { provider, apiKey, apiSecret, name } = body;
 
-        if (!provider || !apiKey || !apiSecret) {
+        if (!provider || !apiKey) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
@@ -23,23 +23,14 @@ export async function POST(request: Request) {
 
         // Encrypt keys before saving
         const encryptedKey = encrypt(apiKey);
-        const encryptedSecret = encrypt(apiSecret);
+        const encryptedSecret = apiSecret ? encrypt(apiSecret) : null;
 
-        const integration = await prisma.integration.upsert({
-            where: {
-                userId_provider: {
-                    userId: user.id,
-                    provider: provider.toUpperCase(),
-                }
-            },
-            update: {
-                apiKey: encryptedKey,
-                apiSecret: encryptedSecret,
-                isActive: true,
-            },
-            create: {
+        // Create new integration (we allow multiple wallets now)
+        const integration = await prisma.integration.create({
+            data: {
                 userId: user.id,
                 provider: provider.toUpperCase(),
+                name: name || null,
                 apiKey: encryptedKey,
                 apiSecret: encryptedSecret,
             }
@@ -64,15 +55,66 @@ export async function GET(request: Request) {
             select: {
                 id: true,
                 provider: true,
+                name: true,
                 isActive: true,
                 lastSync: true,
                 createdAt: true,
-            }
+                // Do not return keys
+            },
+            orderBy: { createdAt: 'desc' }
         });
 
         return NextResponse.json(integrations);
     } catch (error: any) {
         console.error("Error fetching integrations:", error);
         return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const user = await getAuthenticatedUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'Integration ID is required' }, { status: 400 });
+        }
+
+        const integration = await prisma.integration.findUnique({
+            where: { id },
+        });
+
+        if (!integration || integration.userId !== user.id) {
+            return NextResponse.json({ error: 'Integration not found or unauthorized' }, { status: 404 });
+        }
+
+        // Delete associated assets first
+        // The naming convention is "Symbol (SourceLabel)"
+        const sourceLabel = integration.name || integration.provider;
+        const suffix = `(${sourceLabel})`;
+
+        await prisma.asset.deleteMany({
+            where: {
+                userId: user.id,
+                name: {
+                    endsWith: suffix
+                }
+            }
+        });
+
+        // Delete the integration
+        await prisma.integration.delete({
+            where: { id },
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error("Error deleting integration:", error);
+        return NextResponse.json({ error: 'Failed to delete integration' }, { status: 500 });
     }
 }

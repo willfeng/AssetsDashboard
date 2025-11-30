@@ -1,4 +1,5 @@
-// import yahooFinance from 'yahoo-finance2'; // Removed in favor of direct fetch
+import { YahooProvider } from './market-providers/yahoo';
+import { FinnhubProvider } from './market-providers/finnhub';
 
 interface CacheItem {
     price: number;
@@ -41,30 +42,20 @@ export const MarketDataService = {
     },
 
     async getStockPrice(symbol: string): Promise<{ price: number, change24h: number }> {
+        // 1. Try Yahoo (Primary)
         try {
-            console.log(`[MarketData] Fetching stock price for ${symbol}`);
-            const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            const meta = data.chart?.result?.[0]?.meta;
-            const price = meta?.regularMarketPrice || 0;
-            const previousClose = meta?.chartPreviousClose || meta?.previousClose || price;
+            return await YahooProvider.getPrice(symbol);
+        } catch (yahooError) {
+            console.warn(`[MarketData] Yahoo Finance failed for ${symbol}:`, yahooError);
 
-            // Try to get direct change percent if available, otherwise calculate
-            // Note: Yahoo Chart API 'meta' usually has previousClose, but maybe not explicit change percent.
-            // Calculation is robust: (current - prev) / prev * 100
-            let change24h = 0;
-            if (previousClose > 0) {
-                change24h = ((price - previousClose) / previousClose) * 100;
+            // 2. Try Finnhub (Backup)
+            try {
+                console.log(`[MarketData] Switching to backup provider (Finnhub) for ${symbol}...`);
+                return await FinnhubProvider.getPrice(symbol);
+            } catch (finnhubError) {
+                console.error(`[MarketData] All providers failed for ${symbol}. Finnhub error:`, finnhubError);
+                return { price: 0, change24h: 0 };
             }
-
-            console.log(`[MarketData] Price for ${symbol}: ${price}, Change: ${change24h.toFixed(2)}%`);
-            return { price, change24h };
-        } catch (error) {
-            console.error(`[MarketData] Yahoo Finance error for ${symbol}:`, error);
-            return { price: 0, change24h: 0 };
         }
     },
 

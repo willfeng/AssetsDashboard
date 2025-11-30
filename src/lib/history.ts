@@ -10,26 +10,26 @@ export async function recordDailyHistoryWithTotal(userId: string) {
             where: { userId }
         });
 
-        // 2. Calculate total worth
-        let totalWorth = 0;
-
-        for (const asset of assets) {
+        // 2. Calculate total worth (Parallel Fetching)
+        const assetValues = await Promise.all(assets.map(async (asset) => {
             if (asset.type === 'BANK') {
-                totalWorth += asset.balance || 0;
+                return asset.balance || 0;
             } else if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
                 const quantity = asset.quantity || 0;
                 if (quantity > 0 && asset.symbol) {
                     try {
-                        const marketData = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
-                        totalWorth += quantity * marketData.price;
+                        const marketData = await MarketDataService.getAssetPrice(asset.symbol, asset.type as 'STOCK' | 'CRYPTO');
+                        return quantity * marketData.price;
                     } catch (e) {
                         console.warn(`Failed to fetch price for ${asset.symbol} during history recording`, e);
-                        // If price fetch fails, we might skip this asset or use 0. 
-                        // For now, we assume 0 value if price is unavailable to avoid crashing.
+                        return 0;
                     }
                 }
             }
-        }
+            return 0;
+        }));
+
+        const totalWorth = assetValues.reduce((sum, value) => sum + value, 0);
 
         // 3. Save to History
         await prisma.history.upsert({

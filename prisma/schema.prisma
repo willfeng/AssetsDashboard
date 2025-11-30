@@ -59,9 +59,10 @@ model Integration {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  provider  String   // e.g., "BINANCE"
-  apiKey    String   // Encrypted
-  apiSecret String   // Encrypted
+  provider  String   // "BINANCE", "WALLET_ETH", "WALLET_BTC"
+  name      String?  // User defined label, e.g. "Main Wallet"
+  apiKey    String   // Encrypted (API Key or Wallet Address)
+  apiSecret String?  // Encrypted (Secret or null for wallets)
   
   isActive  Boolean  @default(true)
   lastSync  DateTime?
@@ -69,5 +70,6 @@ model Integration {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, provider])
+  // Removed unique constraint on [userId, provider] to allow multiple wallets
+  @@index([userId])
 }

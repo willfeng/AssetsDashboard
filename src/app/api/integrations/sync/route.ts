@@ -1,9 +1,14 @@
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { decrypt } from '@/lib/encryption';
 import { recordDailyHistoryWithTotal } from '@/lib/history';
 import * as ccxt from 'ccxt';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+
+import { EthereumProvider } from '@/lib/crypto-providers/ethereum';
+import { BitcoinProvider } from '@/lib/crypto-providers/bitcoin';
 
 export async function POST(request: Request) {
     try {
@@ -13,82 +18,91 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { provider } = body;
+        const { integrationId } = body;
+
+        if (!integrationId) {
+            return NextResponse.json({ error: 'Integration ID is required' }, { status: 400 });
+        }
 
         const integration = await prisma.integration.findUnique({
-            where: {
-                userId_provider: {
-                    userId: user.id,
-                    provider: provider.toUpperCase(),
-                }
-            }
+            where: { id: integrationId }
         });
 
-        if (!integration || !integration.isActive) {
+        if (!integration || integration.userId !== user.id || !integration.isActive) {
             return NextResponse.json({ error: 'Integration not found or inactive' }, { status: 404 });
         }
 
-        // Decrypt keys
+        const providerType = integration.provider.toUpperCase();
         const apiKey = decrypt(integration.apiKey);
-        const secret = decrypt(integration.apiSecret);
+        // Secret is optional for wallets
+        const secret = integration.apiSecret ? decrypt(integration.apiSecret) : '';
 
-        // Initialize Exchange
-        let exchange;
-        if (provider.toUpperCase() === 'BINANCE') {
-            exchange = new ccxt.binance({
+        const aggregatedBalances: Record<string, number> = {};
+
+        // --- Dispatch Logic ---
+        if (providerType === 'BINANCE') {
+            // Proxy removed as per user request
+            // const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || 'http://127.0.0.1:7890';
+            // const agent = new HttpsProxyAgent(proxyUrl);
+
+            const exchange = new ccxt.binance({
                 apiKey: apiKey,
                 secret: secret,
                 enableRateLimit: true,
+                // agent: agent, // Removed
+                options: {
+                    'adjustForTimeDifference': true,
+                    'recvWindow': 60000, // Allow 60s discrepancy
+                }
             });
+
+            console.log(`[Sync] Fetching balances for ${user.id} from BINANCE...`);
+            const balance = await exchange.fetchBalance();
+            const rawBalances = (balance.total as unknown) as Record<string, number>;
+
+            for (const [rawSymbol, quantity] of Object.entries(rawBalances)) {
+                if (quantity > 0) {
+                    let symbol = rawSymbol;
+                    if (symbol.startsWith('LD') && symbol.length > 3) {
+                        symbol = symbol.substring(2);
+                    }
+                    aggregatedBalances[symbol] = (aggregatedBalances[symbol] || 0) + quantity;
+                }
+            }
+
+        } else if (providerType === 'WALLET_ETH') {
+            console.log(`[Sync] Fetching ETH balance for ${apiKey}...`);
+            const balance = await EthereumProvider.getBalance(apiKey); // apiKey stores the address
+            if (balance > 0) {
+                aggregatedBalances['ETH'] = balance;
+            }
+
+        } else if (providerType === 'WALLET_BTC') {
+            console.log(`[Sync] Fetching BTC balance for ${apiKey}...`);
+            const balance = await BitcoinProvider.getBalance(apiKey); // apiKey stores the address
+            if (balance > 0) {
+                aggregatedBalances['BTC'] = balance;
+            }
+
         } else {
             return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 });
         }
 
-        console.log(`[Sync] Fetching balances for ${user.id} from ${provider}...`);
-
-        // Fetch Balance
-        const balance = await exchange.fetchBalance();
-        const items = balance.items || []; // ccxt unifies this usually, but 'total' is safer
-
-        // Process non-zero balances
-        // ccxt structure: balance['total'] = { 'BTC': 0.1, 'USDT': 100 ... }
-        const rawBalances = (balance.total as unknown) as Record<string, number>;
-        const aggregatedBalances: Record<string, number> = {};
-
-        for (const [rawSymbol, quantity] of Object.entries(rawBalances)) {
-            if (quantity > 0) {
-                let symbol = rawSymbol;
-                // Handle Binance Earn "LD" prefix (e.g. LDBTC -> BTC)
-                // We check length > 3 to avoid stripping valid symbols like LDO (Lido DAO)
-                // LDO starts with LD but is 3 chars. LDBTC is 5 chars.
-                if (symbol.startsWith('LD') && symbol.length > 3) {
-                    symbol = symbol.substring(2);
-                }
-
-                // Aggregate quantity
-                if (aggregatedBalances[symbol]) {
-                    aggregatedBalances[symbol] += quantity;
-                } else {
-                    aggregatedBalances[symbol] = quantity;
-                }
-            }
-        }
-
+        // --- Upsert Assets ---
         let syncedCount = 0;
 
         for (const [symbol, quantity] of Object.entries(aggregatedBalances)) {
-            // Upsert Asset
-            // To support multiple exchanges (e.g. Binance + Coinbase) and prevent overwriting manual assets,
-            // we scope the asset by naming it "Symbol (Provider)", e.g. "BTC (Binance)".
-
-            const assetName = `${symbol} (${provider})`; // e.g. "BTC (Binance)"
+            // Naming convention: "Symbol (Name)" or "Symbol (Provider)"
+            // e.g. "ETH (My MetaMask)" or "BTC (Binance)"
+            const sourceLabel = integration.name || providerType;
+            const assetName = `${symbol} (${sourceLabel})`;
 
             const existingAsset = await prisma.asset.findFirst({
                 where: {
                     userId: user.id,
                     type: 'CRYPTO',
                     symbol: symbol.toUpperCase(),
-                    name: assetName, // Strict match to ensure we only update this provider's asset
+                    name: assetName,
                 }
             });
 
@@ -105,7 +119,7 @@ export async function POST(request: Request) {
                         name: assetName,
                         symbol: symbol.toUpperCase(),
                         quantity: quantity,
-                        currency: 'USD', // Default
+                        currency: 'USD',
                     }
                 });
             }
