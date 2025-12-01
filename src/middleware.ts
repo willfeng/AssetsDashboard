@@ -9,8 +9,11 @@ const isProtectedRoute = createRouteMatcher([
     // '/api/history(.*)',
 ]);
 
-export default clerkMiddleware((auth, req) => {
-    if (isProtectedRoute(req)) auth().protect();
+export default clerkMiddleware(async (auth, req) => {
+    if (isProtectedRoute(req)) {
+        const { userId, redirectToSignIn } = await auth();
+        if (!userId) return redirectToSignIn();
+    }
 });
 
 export const config = {

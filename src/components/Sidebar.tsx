@@ -21,7 +21,7 @@ const routes = [
     {
         label: "Analytics",
         icon: PieChart,
-        href: "/#analytics",
+        href: "/analytics",
         color: "text-pink-700",
     },
     {
@@ -51,23 +51,25 @@ export function Sidebar() {
                     </h1>
                 </Link>
                 <div className="space-y-1">
-                    {routes.map((route) => (
-                        <Link
-                            key={route.label}
-                            href={route.href}
-                            onClick={(e) => handleNavClick(e, route.href)}
-                            className={cn(
-                                "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg transition",
-                                // Simple active state check (can be improved)
-                                pathname === "/" && route.href === "/#dashboard" ? "text-white bg-white/10" : "text-zinc-400"
-                            )}
-                        >
-                            <div className="flex items-center flex-1">
-                                <route.icon className={cn("h-5 w-5 mr-3", route.color)} />
-                                {route.label}
-                            </div>
-                        </Link>
-                    ))}
+                    {routes.map((route) => {
+                        const isActive = (pathname === "/" && route.href.startsWith("/#")) || pathname === route.href;
+                        return (
+                            <Link
+                                key={route.label}
+                                href={route.href}
+                                onClick={(e) => handleNavClick(e, route.href)}
+                                className={cn(
+                                    "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg transition",
+                                    isActive ? "text-white bg-white/10" : "text-zinc-400"
+                                )}
+                            >
+                                <div className="flex items-center flex-1">
+                                    <route.icon className={cn("h-5 w-5 mr-3", route.color)} />
+                                    {route.label}
+                                </div>
+                            </Link>
+                        );
+                    })}
                 </div>
             </div>
         </div>

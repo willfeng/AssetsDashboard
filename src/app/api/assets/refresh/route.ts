@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { MarketDataService } from '@/lib/market-data';
-import { recordDailyHistoryWithTotal } from '@/lib/history';
+import { recordDailyHistoryWithTotal, recordAssetSnapshot } from '@/lib/history';
 
 export async function POST() {
     try {
@@ -24,17 +24,17 @@ export async function POST() {
                     try {
                         const marketData = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
 
-                        // Update DB if price changed significantly? 
-                        // For now, we just return the fresh data, but maybe we should update the DB 'balance' or 'totalValue' if we stored it.
-                        // The Asset model has 'quantity' and 'balance'. For crypto/stock, 'balance' is usually 0 or unused, 'quantity' is used.
-                        // We calculate totalValue on the fly.
-
-                        return {
+                        const updatedAsset = {
                             ...asset,
                             currentPrice: marketData.price,
                             change24h: marketData.change24h,
                             totalValue: (asset.quantity || 0) * marketData.price
                         };
+
+                        // Record Snapshot asynchronously
+                        recordAssetSnapshot(asset.id, marketData.price, asset.quantity || 0);
+
+                        return updatedAsset;
                     } catch (e) {
                         console.error(`Failed to refresh price for ${asset.symbol}`, e);
                     }

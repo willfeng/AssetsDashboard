@@ -2,6 +2,8 @@
 import { ExchangeAdapter } from './types';
 import { BinanceAdapter } from './binance';
 import { OkxAdapter } from './okx';
+import { SolanaAdapter } from './solana';
+import { TronAdapter } from './tron';
 
 export class ExchangeFactory {
     private static adapters: Map<string, ExchangeAdapter> = new Map();
@@ -13,6 +15,12 @@ export class ExchangeFactory {
 
         const okx = new OkxAdapter();
         this.adapters.set(okx.providerName, okx);
+
+        const solana = new SolanaAdapter();
+        this.adapters.set(solana.providerName, solana);
+
+        const tron = new TronAdapter();
+        this.adapters.set(tron.providerName, tron);
     }
 
     /**

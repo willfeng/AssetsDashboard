@@ -104,3 +104,34 @@ export async function getHistory(userId: string, range: string = '1M') {
 
     return history;
 }
+
+export async function recordAssetSnapshot(assetId: string, price: number, quantity: number) {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const value = price * quantity;
+
+    try {
+        await prisma.assetSnapshot.upsert({
+            where: {
+                assetId_date: {
+                    assetId,
+                    date: today
+                }
+            },
+            update: {
+                value,
+                price,
+                quantity
+            },
+            create: {
+                assetId,
+                date: today,
+                value,
+                price,
+                quantity
+            }
+        });
+        // console.log(`Recorded snapshot for asset ${assetId}: $${value}`);
+    } catch (error) {
+        console.error(`Failed to record snapshot for asset ${assetId}:`, error);
+    }
+}

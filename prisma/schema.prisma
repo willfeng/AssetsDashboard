@@ -39,6 +39,24 @@ model Asset {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  snapshots AssetSnapshot[]
+}
+
+model AssetSnapshot {
+  id        String   @id @default(cuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  date      String   // YYYY-MM-DD
+  value     Float    // Total Value (price * quantity)
+  price     Float?   // Unit Price at that time
+  quantity  Float?   // Quantity at that time
+
+  createdAt DateTime @default(now())
+
+  @@unique([assetId, date])
+  @@index([assetId])
 }
 
 model History {

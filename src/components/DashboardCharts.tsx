@@ -42,7 +42,7 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
     };
 
     return (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
             <Card className="col-span-1 flex flex-col">
                 <CardHeader>
                     <CardTitle>Asset Allocation</CardTitle>
@@ -142,7 +142,7 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
                 </CardContent>
             </Card>
 
-            <Card className="col-span-2 flex flex-col">
+            <Card className="col-span-1 md:col-span-2 flex flex-col">
                 <CardHeader>
                     <CardTitle>Asset Trend</CardTitle>
                 </CardHeader>

@@ -36,6 +36,8 @@ const PROVIDERS = [
     { id: "OKX", name: "OKX", type: "EXCHANGE", icon: "O" },
     { id: "WALLET_ETH", name: "Ethereum Wallet", type: "WALLET", icon: "Ξ" },
     { id: "WALLET_BTC", name: "Bitcoin Wallet", type: "WALLET", icon: "₿" },
+    { id: "WALLET_SOL", name: "Solana Wallet", type: "WALLET", icon: "◎" },
+    { id: "WALLET_TRON", name: "Tron Wallet", type: "WALLET", icon: "T" },
 ];
 
 export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProps) {
@@ -114,6 +116,21 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
         if (selectedProvider === "WALLET_BTC") {
             if (formData.apiKey.length < 26 || formData.apiKey.length > 62) {
                 setError("Invalid Bitcoin address length.");
+                return;
+            }
+        }
+
+        if (selectedProvider === "WALLET_SOL") {
+            // Base58 check is complex without lib, just check length roughly (32-44 chars)
+            if (formData.apiKey.length < 32 || formData.apiKey.length > 44) {
+                setError("Invalid Solana address length.");
+                return;
+            }
+        }
+
+        if (selectedProvider === "WALLET_TRON") {
+            if (!formData.apiKey.startsWith("T") || formData.apiKey.length !== 34) {
+                setError("Invalid Tron address. Must start with 'T' and be 34 characters long.");
                 return;
             }
         }
@@ -222,7 +239,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                         Manage Connections
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                <DialogContent className="w-full sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Connection Manager</DialogTitle>
                         <DialogDescription>
@@ -294,7 +311,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                         {/* ADD TAB */}
                         <TabsContent value="add" className="mt-4">
                             {!selectedProvider ? (
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {PROVIDERS.map((p) => (
                                         <Card key={p.id} className="cursor-pointer hover:border-primary transition-all" onClick={() => setSelectedProvider(p.id)}>
                                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -334,7 +351,13 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                                         <div className="space-y-1">
                                             <Label>{selectedProvider.includes("WALLET") ? "Wallet Address" : "API Key"}</Label>
                                             <Input
-                                                placeholder={selectedProvider === "WALLET_ETH" ? "0x..." : selectedProvider === "WALLET_BTC" ? "bc1..." : "API Key"}
+                                                placeholder={
+                                                    selectedProvider === "WALLET_ETH" ? "0x..." :
+                                                        selectedProvider === "WALLET_BTC" ? "bc1..." :
+                                                            selectedProvider === "WALLET_SOL" ? "Solana Address" :
+                                                                selectedProvider === "WALLET_TRON" ? "T..." :
+                                                                    "API Key"
+                                                }
                                                 value={formData.apiKey}
                                                 onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
                                             />

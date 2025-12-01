@@ -71,8 +71,12 @@ export default function Dashboard() {
     try {
       const res = await fetch(`/api/history?range=${timeRange}`);
       if (!res.ok) {
-        if (res.status === 401) return;
-        throw new Error(`API error: ${res.status}`);
+        if (res.status === 401) {
+          console.log("User not authenticated, skipping history fetch");
+          return;
+        }
+        console.error(`History API error: ${res.status}`);
+        return; // Don't throw, just log and return
       }
       const data = await res.json();
       if (data && Array.isArray(data.historyData)) {
@@ -150,10 +154,12 @@ export default function Dashboard() {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await fetchAssets();
-      await fetchHistory();
-      await checkAutoSync();
+      // 1. Fetch data in parallel for faster initial render
+      await Promise.all([fetchAssets(), fetchHistory()]);
       setLoading(false);
+
+      // 2. Run auto-sync in background (don't block UI)
+      checkAutoSync();
     };
     init();
 
@@ -204,8 +210,8 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 space-y-8" id="dashboard">
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="space-y-1 w-full md:w-auto">
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
           <div className="flex items-center gap-4">
             {isSyncing && (
@@ -221,7 +227,7 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <ConnectionManagerModal
             onChanged={() => {
               fetchAssets();
@@ -231,7 +237,7 @@ export default function Dashboard() {
           <AddAssetModal
             open={isAddModalOpen}
             onOpenChange={setIsAddModalOpen}
-            trigger={<Button variant="outline" className="gap-2"><Plus className="h-4 w-4" />Add Asset</Button>}
+            trigger={<Button variant="outline" className="gap-2 w-full md:w-auto"><Plus className="h-4 w-4" />Add Asset</Button>}
             onAssetAdded={() => {
               fetchAssets();
               fetchHistory();
