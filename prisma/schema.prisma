@@ -63,6 +63,7 @@ model Integration {
   name      String?  // User defined label, e.g. "Main Wallet"
   apiKey    String   // Encrypted (API Key or Wallet Address)
   apiSecret String?  // Encrypted (Secret or null for wallets)
+  extraParams String? // Encrypted JSON (e.g. { passphrase: "..." } for OKX)
   
   isActive  Boolean  @default(true)
   lastSync  DateTime?

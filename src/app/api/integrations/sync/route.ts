@@ -4,11 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { decrypt } from '@/lib/encryption';
 import { recordDailyHistoryWithTotal } from '@/lib/history';
-import * as ccxt from 'ccxt';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 
 import { EthereumProvider } from '@/lib/crypto-providers/ethereum';
 import { BitcoinProvider } from '@/lib/crypto-providers/bitcoin';
+import { ExchangeFactory } from '@/lib/exchanges/factory';
 
 export async function POST(request: Request) {
     try {
@@ -37,40 +36,21 @@ export async function POST(request: Request) {
         // Secret is optional for wallets
         const secret = integration.apiSecret ? decrypt(integration.apiSecret) : '';
 
+        // Extra params (e.g. passphrase for OKX)
+        let extraParams: Record<string, any> | undefined = undefined;
+        if (integration.extraParams) {
+            try {
+                const decryptedExtra = decrypt(integration.extraParams);
+                extraParams = JSON.parse(decryptedExtra);
+            } catch (e) {
+                console.warn(`Failed to parse extraParams for integration ${integration.id}`);
+            }
+        }
+
         const aggregatedBalances: Record<string, number> = {};
 
         // --- Dispatch Logic ---
-        if (providerType === 'BINANCE') {
-            // Proxy removed as per user request
-            // const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || 'http://127.0.0.1:7890';
-            // const agent = new HttpsProxyAgent(proxyUrl);
-
-            const exchange = new ccxt.binance({
-                apiKey: apiKey,
-                secret: secret,
-                enableRateLimit: true,
-                // agent: agent, // Removed
-                options: {
-                    'adjustForTimeDifference': true,
-                    'recvWindow': 60000, // Allow 60s discrepancy
-                }
-            });
-
-            console.log(`[Sync] Fetching balances for ${user.id} from BINANCE...`);
-            const balance = await exchange.fetchBalance();
-            const rawBalances = (balance.total as unknown) as Record<string, number>;
-
-            for (const [rawSymbol, quantity] of Object.entries(rawBalances)) {
-                if (quantity > 0) {
-                    let symbol = rawSymbol;
-                    if (symbol.startsWith('LD') && symbol.length > 3) {
-                        symbol = symbol.substring(2);
-                    }
-                    aggregatedBalances[symbol] = (aggregatedBalances[symbol] || 0) + quantity;
-                }
-            }
-
-        } else if (providerType === 'WALLET_ETH') {
+        if (providerType === 'WALLET_ETH') {
             console.log(`[Sync] Fetching ETH balance for ${apiKey}...`);
             const balance = await EthereumProvider.getBalance(apiKey); // apiKey stores the address
             if (balance > 0) {
@@ -85,7 +65,20 @@ export async function POST(request: Request) {
             }
 
         } else {
-            return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 });
+            // Try Exchange Factory for other providers (BINANCE, OKX, etc.)
+            try {
+                const adapter = ExchangeFactory.getAdapter(providerType);
+                console.log(`[Sync] Fetching balances for ${user.id} from ${providerType}...`);
+
+                const balances = await adapter.fetchBalances(apiKey, secret, extraParams);
+                Object.assign(aggregatedBalances, balances);
+
+            } catch (error: any) {
+                if (error.message.includes('Unsupported exchange provider')) {
+                    return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 });
+                }
+                throw error;
+            }
         }
 
         // --- Upsert Assets ---

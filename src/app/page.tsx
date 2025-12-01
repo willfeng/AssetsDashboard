@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import dynamic from "next/dynamic";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, DollarSign, Wallet, Bitcoin, Pencil, Trash2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, DollarSign, Wallet, Bitcoin, Pencil, Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AssetList } from "@/components/AssetList";
 import { ConnectionManagerModal } from "@/components/ConnectionManagerModal";
@@ -231,7 +231,7 @@ export default function Dashboard() {
           <AddAssetModal
             open={isAddModalOpen}
             onOpenChange={setIsAddModalOpen}
-            trigger={<Button>Add Asset</Button>}
+            trigger={<Button variant="outline" className="gap-2"><Plus className="h-4 w-4" />Add Asset</Button>}
             onAssetAdded={() => {
               fetchAssets();
               fetchHistory();

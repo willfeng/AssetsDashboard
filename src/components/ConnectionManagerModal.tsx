@@ -33,6 +33,7 @@ interface ConnectionManagerModalProps {
 
 const PROVIDERS = [
     { id: "BINANCE", name: "Binance", type: "EXCHANGE", icon: "B" },
+    { id: "OKX", name: "OKX", type: "EXCHANGE", icon: "O" },
     { id: "WALLET_ETH", name: "Ethereum Wallet", type: "WALLET", icon: "Ξ" },
     { id: "WALLET_BTC", name: "Bitcoin Wallet", type: "WALLET", icon: "₿" },
 ];
@@ -45,7 +46,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
 
     // Form State
     const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-    const [formData, setFormData] = useState({ name: "", apiKey: "", apiSecret: "" });
+    const [formData, setFormData] = useState({ name: "", apiKey: "", apiSecret: "", passphrase: "" });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
@@ -82,7 +83,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
 
     const resetForm = () => {
         setSelectedProvider(null);
-        setFormData({ name: "", apiKey: "", apiSecret: "" });
+        setFormData({ name: "", apiKey: "", apiSecret: "", passphrase: "" });
         setError("");
         setSubmitting(false);
     };
@@ -93,8 +94,12 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
             setError(selectedProvider.includes("WALLET") ? "Address is required" : "API Key is required");
             return;
         }
-        if (selectedProvider === "BINANCE" && !formData.apiSecret) {
+        if ((selectedProvider === "BINANCE" || selectedProvider === "OKX") && !formData.apiSecret) {
             setError("API Secret is required");
+            return;
+        }
+        if (selectedProvider === "OKX" && !formData.passphrase) {
+            setError("Passphrase is required for OKX");
             return;
         }
 
@@ -117,6 +122,12 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
         setError("");
 
         try {
+            // Prepare extraParams for OKX
+            let extraParams = null;
+            if (selectedProvider === "OKX") {
+                extraParams = JSON.stringify({ passphrase: formData.passphrase });
+            }
+
             const res = await fetch('/api/integrations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -125,6 +136,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                     name: formData.name,
                     apiKey: formData.apiKey,
                     apiSecret: formData.apiSecret || null,
+                    extraParams: extraParams,
                 }),
             });
 
@@ -333,7 +345,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                                             )}
                                         </div>
 
-                                        {selectedProvider === "BINANCE" && (
+                                        {(selectedProvider === "BINANCE" || selectedProvider === "OKX") && (
                                             <div className="space-y-1">
                                                 <Label>API Secret</Label>
                                                 <Input
@@ -341,6 +353,18 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                                                     placeholder="Secret Key"
                                                     value={formData.apiSecret}
                                                     onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {selectedProvider === "OKX" && (
+                                            <div className="space-y-1">
+                                                <Label>Passphrase</Label>
+                                                <Input
+                                                    type="password"
+                                                    placeholder="API Passphrase"
+                                                    value={formData.passphrase}
+                                                    onChange={(e) => setFormData({ ...formData, passphrase: e.target.value })}
                                                 />
                                             </div>
                                         )}

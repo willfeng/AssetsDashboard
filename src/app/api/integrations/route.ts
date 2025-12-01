@@ -12,7 +12,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { provider, apiKey, apiSecret, name } = body;
+        const { provider, apiKey, apiSecret, name, extraParams } = body;
 
         if (!provider || !apiKey) {
             return NextResponse.json(
@@ -24,6 +24,7 @@ export async function POST(request: Request) {
         // Encrypt keys before saving
         const encryptedKey = encrypt(apiKey);
         const encryptedSecret = apiSecret ? encrypt(apiSecret) : null;
+        const encryptedExtra = extraParams ? encrypt(extraParams) : null;
 
         // Create new integration (we allow multiple wallets now)
         const integration = await prisma.integration.create({
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
                 name: name || null,
                 apiKey: encryptedKey,
                 apiSecret: encryptedSecret,
+                extraParams: encryptedExtra,
             }
         });
 
