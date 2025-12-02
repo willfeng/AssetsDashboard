@@ -92,3 +92,10 @@ model Integration {
   // Removed unique constraint on [userId, provider] to allow multiple wallets
   @@index([userId])
 }
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  currency  String   @unique // "EUR", "GBP", "SGD", etc.
+  rate      Float    // Rate relative to USD (1 USD = x Currency)
+  updatedAt DateTime @updatedAt
+}

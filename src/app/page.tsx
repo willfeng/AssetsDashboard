@@ -7,6 +7,7 @@ import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, DollarSign, Wal
 import { cn } from "@/lib/utils";
 import { AssetList } from "@/components/AssetList";
 import { ConnectionManagerModal } from "@/components/ConnectionManagerModal";
+import { OnboardingModal } from "@/components/OnboardingModal";
 import { AddAssetModal } from "@/components/AddAssetModal";
 import { Asset, HistoricalDataPoint } from "@/types";
 import {
@@ -20,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { CurrencyService } from "@/lib/currency";
 
 const DashboardCharts = dynamic(() => import("@/components/DashboardCharts"), { ssr: false });
 
@@ -154,6 +156,9 @@ export default function Dashboard() {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
+      // 0. Fetch latest exchange rates first
+      await CurrencyService.fetchRates();
+
       // 1. Fetch data in parallel for faster initial render
       await Promise.all([fetchAssets(), fetchHistory()]);
       setLoading(false);
@@ -191,16 +196,28 @@ export default function Dashboard() {
     }
   };
 
+
+
+  // ...
+
   // Calculate totals
   const totalBalance = assets.reduce((sum, asset) => {
-    if (asset.type === "BANK") return sum + asset.balance;
+    if (asset.type === "BANK") {
+      return sum + CurrencyService.convertToUSD(asset.balance, asset.currency || "USD");
+    }
     return sum + (asset.totalValue || 0);
   }, 0);
 
   // Calculate allocation for Pie Chart
   const allocation = assets.reduce((acc, asset) => {
     const type = asset.type === "BANK" ? "Cash" : asset.type === "STOCK" ? "Stock" : "Crypto";
-    acc[type] = (acc[type] || 0) + (asset.type === "BANK" ? asset.balance : asset.totalValue || 0);
+    let value = 0;
+    if (asset.type === "BANK") {
+      value = CurrencyService.convertToUSD(asset.balance, asset.currency || "USD");
+    } else {
+      value = asset.totalValue || 0;
+    }
+    acc[type] = (acc[type] || 0) + value;
     return acc;
   }, {} as Record<string, number>);
 
@@ -244,6 +261,7 @@ export default function Dashboard() {
               setIsAddModalOpen(false);
             }}
           />
+          <OnboardingModal />
         </div>
 
         {/* Hidden Edit Modal - Controlled */}

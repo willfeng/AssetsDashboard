@@ -15,7 +15,7 @@ import { Asset } from "@/types"
 const bankSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     balance: z.coerce.number().min(0, "Balance must be positive"),
-    currency: z.enum(["USD", "HKD", "CNY"]),
+    currency: z.enum(["USD", "HKD", "CNY", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD"]),
     apy: z.coerce.number().optional(),
 })
 
@@ -59,14 +59,14 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
         defaultValues: initialData ? {
             name: initialData.name,
             balance: initialData.type === 'BANK' ? initialData.balance : 0,
-            currency: (initialData.type === 'BANK' ? initialData.currency : "USD") as "USD" | "HKD" | "CNY",
+            currency: (initialData.type === 'BANK' ? initialData.currency : "USD") as "USD" | "HKD" | "CNY" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "SGD",
             symbol: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.symbol : "",
             quantity: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.quantity : 0,
             apy: initialData.type === 'BANK' ? (initialData.apy || 0) : 0
         } : {
             name: "",
             balance: 0,
-            currency: "USD" as "USD" | "HKD" | "CNY",
+            currency: "USD" as "USD" | "HKD" | "CNY" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "SGD",
             symbol: "",
             quantity: 0,
             apy: 0
@@ -279,6 +279,12 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                                             <SelectItem value="USD">USD</SelectItem>
                                                             <SelectItem value="HKD">HKD</SelectItem>
                                                             <SelectItem value="CNY">CNY</SelectItem>
+                                                            <SelectItem value="EUR">EUR</SelectItem>
+                                                            <SelectItem value="GBP">GBP</SelectItem>
+                                                            <SelectItem value="JPY">JPY</SelectItem>
+                                                            <SelectItem value="AUD">AUD</SelectItem>
+                                                            <SelectItem value="CAD">CAD</SelectItem>
+                                                            <SelectItem value="SGD">SGD</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                     <FormMessage />

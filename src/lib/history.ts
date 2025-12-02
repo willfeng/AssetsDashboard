@@ -1,6 +1,8 @@
 import { prisma } from "./prisma";
 import { MarketDataService } from "./market-data";
 
+import { CurrencyService } from "./currency";
+
 export async function recordDailyHistoryWithTotal(userId: string) {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -13,13 +15,18 @@ export async function recordDailyHistoryWithTotal(userId: string) {
         // 2. Calculate total worth (Parallel Fetching)
         const assetValues = await Promise.all(assets.map(async (asset) => {
             if (asset.type === 'BANK') {
-                return asset.balance || 0;
+                return CurrencyService.convertToUSD(asset.balance || 0, asset.currency || "USD");
             } else if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
                 const quantity = asset.quantity || 0;
                 if (quantity > 0 && asset.symbol) {
                     try {
                         const marketData = await MarketDataService.getAssetPrice(asset.symbol, asset.type as 'STOCK' | 'CRYPTO');
-                        return quantity * marketData.price;
+                        const price = Number(marketData.price);
+                        if (isNaN(price)) {
+                            console.warn(`Invalid price for ${asset.symbol}: ${marketData.price}`);
+                            return 0;
+                        }
+                        return quantity * price;
                     } catch (e) {
                         console.warn(`Failed to fetch price for ${asset.symbol} during history recording`, e);
                         return 0;
@@ -29,7 +36,7 @@ export async function recordDailyHistoryWithTotal(userId: string) {
             return 0;
         }));
 
-        const totalWorth = assetValues.reduce((sum, value) => sum + value, 0);
+        const totalWorth = assetValues.reduce((sum, value) => sum + (isNaN(value) ? 0 : value), 0);
 
         // 3. Save to History
         await prisma.history.upsert({
@@ -53,8 +60,6 @@ export async function recordDailyHistoryWithTotal(userId: string) {
 
     } catch (error) {
         console.error("Error recording daily history:", error);
-        // We don't throw here to avoid failing the parent request (e.g. Add Asset) 
-        // just because history recording failed.
     }
 }
 
@@ -102,12 +107,53 @@ export async function getHistory(userId: string, range: string = '1M') {
         }
     });
 
-    return history;
+    if (history.length === 0) {
+        return [];
+    }
+
+    // Forward Fill Logic
+    const historyMap = new Map(history.map(h => [h.date, h.value]));
+    const firstDateStr = history[0].date;
+    const lastDateStr = new Date().toISOString().split('T')[0];
+
+    const filledHistory: { date: string; value: number }[] = [];
+    let lastValue = history[0].value;
+
+    // Ensure initial lastValue is valid
+    if (isNaN(lastValue)) lastValue = 0;
+
+    const currDate = new Date(firstDateStr);
+    const endDate = new Date(lastDateStr);
+
+    while (currDate <= endDate) {
+        const dateStr = currDate.toISOString().split('T')[0];
+
+        if (historyMap.has(dateStr)) {
+            const val = historyMap.get(dateStr)!;
+            if (!isNaN(val)) {
+                lastValue = val;
+            }
+        }
+
+        filledHistory.push({
+            date: dateStr,
+            value: lastValue
+        });
+
+        currDate.setDate(currDate.getDate() + 1);
+    }
+
+    return filledHistory;
 }
 
 export async function recordAssetSnapshot(assetId: string, price: number, quantity: number) {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const value = price * quantity;
+
+    if (isNaN(value)) {
+        console.error(`Skipping snapshot for ${assetId}: value is NaN`);
+        return;
+    }
 
     try {
         await prisma.assetSnapshot.upsert({
@@ -130,7 +176,6 @@ export async function recordAssetSnapshot(assetId: string, price: number, quanti
                 quantity
             }
         });
-        // console.log(`Recorded snapshot for asset ${assetId}: $${value}`);
     } catch (error) {
         console.error(`Failed to record snapshot for asset ${assetId}:`, error);
     }

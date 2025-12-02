@@ -9,6 +9,8 @@ import {
     ChartTooltipContent,
     ChartConfig,
 } from "@/components/ui/chart";
+import { EmptyState } from "@/components/EmptyState";
+import { PieChart as PieChartIcon, TrendingUp } from "lucide-react";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -54,6 +56,7 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
                                 Loading allocation...
                             </div>
                         ) : pieData.length > 0 ? (
+                            // ... existing PieChart code ...
                             <div className="flex flex-col h-full">
                                 <ChartContainer config={pieConfig} className="mx-auto aspect-square max-h-[250px] w-full flex-1">
                                     <PieChart>
@@ -73,7 +76,7 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
                                             {pieData.map((entry, index) => (
                                                 <Cell
                                                     key={`cell-${index}`}
-                                                    fill={COLORS[entry.name as keyof typeof COLORS] || "#8884d8"}
+                                                    fill={(COLORS[entry.name as keyof typeof COLORS] || "#8884d8") as string}
                                                 />
                                             ))}
                                             <Label
@@ -110,35 +113,15 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
                                 </ChartContainer>
                             </div>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground">
-                                No allocation data
-                            </div>
+                            <EmptyState
+                                icon={PieChartIcon}
+                                title="No Allocation Data"
+                                description="Add assets to see your portfolio breakdown."
+                                className="h-full"
+                            />
                         )}
                     </div>
-                    {!isLoading && pieData.length > 0 && (
-                        <div className="mt-4 space-y-3">
-                            {pieData.map((entry) => {
-                                const percentage = ((entry.value / totalValue) * 100).toFixed(1);
-                                return (
-                                    <div key={entry.name} className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <div
-                                                className="h-3 w-3 rounded-full"
-                                                style={{ backgroundColor: COLORS[entry.name as keyof typeof COLORS] || "#8884d8" }}
-                                            />
-                                            <span className="text-muted-foreground">{entry.name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-bold">{percentage}%</span>
-                                            <span className="text-muted-foreground w-20 text-right">
-                                                ${entry.value.toLocaleString()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                    {/* ... existing legend code ... */}
                 </CardContent>
             </Card>
 
@@ -153,6 +136,7 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
                                 Loading trend data...
                             </div>
                         ) : historyData.length > 0 ? (
+                            // ... existing LineChart code ...
                             <ChartContainer config={chartConfig} className="h-full w-full">
                                 <LineChart
                                     data={historyData}
@@ -182,17 +166,21 @@ export default function DashboardCharts({ pieData, historyData, isLoading }: Das
                                     />
                                     <Line
                                         dataKey="value"
-                                        type="natural"
+                                        type="monotone"
                                         stroke="var(--color-value)"
                                         strokeWidth={2}
                                         dot={false}
+                                        connectNulls={true}
                                     />
                                 </LineChart>
                             </ChartContainer>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground">
-                                No trend data available
-                            </div>
+                            <EmptyState
+                                icon={TrendingUp}
+                                title="No Trend Data"
+                                description="History will appear after you add assets."
+                                className="h-full"
+                            />
                         )}
                     </div>
                 </CardContent>

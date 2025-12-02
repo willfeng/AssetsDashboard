@@ -4,7 +4,7 @@ export interface BankAccount {
     id: string;
     name: string;
     balance: number;
-    currency: 'USD' | 'HKD' | 'CNY';
+    currency: 'USD' | 'HKD' | 'CNY' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD' | 'SGD';
     apy?: number;
     type: 'BANK';
 }
