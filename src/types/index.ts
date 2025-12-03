@@ -6,6 +6,8 @@ export interface BankAccount {
     balance: number;
     currency: 'USD' | 'HKD' | 'CNY' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD' | 'SGD';
     apy?: number;
+    integrationId?: string;
+    order?: number;
     type: 'BANK';
 }
 
@@ -17,6 +19,9 @@ export interface StockAsset {
     currentPrice: number;
     totalValue: number;
     change24h: number; // Percentage
+    currency?: string;
+    integrationId?: string;
+    order?: number;
     type: 'STOCK';
 }
 
@@ -28,6 +33,9 @@ export interface CryptoAsset {
     currentPrice: number;
     totalValue: number;
     change24h: number; // Percentage
+    currency?: string;
+    integrationId?: string;
+    order?: number;
     type: 'CRYPTO';
 }
 

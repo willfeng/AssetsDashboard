@@ -198,25 +198,41 @@ export default function Dashboard() {
 
 
 
+  const handleReorder = async (newAssets: Asset[]) => {
+    // Optimistic update
+    setAssets(newAssets);
+
+    try {
+      const items = newAssets.map((asset, index) => ({
+        id: asset.id,
+        order: asset.order ?? index // Use existing order or index if missing
+      }));
+
+      await fetch('/api/assets/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+      });
+    } catch (error) {
+      console.error("Failed to save asset order:", error);
+      // Revert on error? For now, just log.
+      fetchAssets();
+    }
+  };
+
   // ...
 
   // Calculate totals
   const totalBalance = assets.reduce((sum, asset) => {
-    if (asset.type === "BANK") {
-      return sum + CurrencyService.convertToUSD(asset.balance, asset.currency || "USD");
-    }
-    return sum + (asset.totalValue || 0);
+    const rawValue = asset.type === "BANK" ? asset.balance : (asset.totalValue || 0);
+    return sum + CurrencyService.convertToUSD(rawValue, asset.currency || "USD");
   }, 0);
 
   // Calculate allocation for Pie Chart
   const allocation = assets.reduce((acc, asset) => {
     const type = asset.type === "BANK" ? "Cash" : asset.type === "STOCK" ? "Stock" : "Crypto";
-    let value = 0;
-    if (asset.type === "BANK") {
-      value = CurrencyService.convertToUSD(asset.balance, asset.currency || "USD");
-    } else {
-      value = asset.totalValue || 0;
-    }
+    const rawValue = asset.type === "BANK" ? asset.balance : (asset.totalValue || 0);
+    const value = CurrencyService.convertToUSD(rawValue, asset.currency || "USD");
     acc[type] = (acc[type] || 0) + value;
     return acc;
   }, {} as Record<string, number>);
@@ -368,6 +384,7 @@ export default function Dashboard() {
         assets={assets}
         onEdit={handleEdit}
         onDelete={handleDeleteClick}
+        onReorder={handleReorder}
       />
     </div>
   );

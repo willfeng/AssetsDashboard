@@ -34,6 +34,7 @@ interface ConnectionManagerModalProps {
 const PROVIDERS = [
     { id: "BINANCE", name: "Binance", type: "EXCHANGE", icon: "B" },
     { id: "OKX", name: "OKX", type: "EXCHANGE", icon: "O" },
+    { id: "KRAKEN", name: "Kraken", type: "EXCHANGE", icon: "K" },
     { id: "WALLET_ETH", name: "Ethereum Wallet", type: "WALLET", icon: "Ξ" },
     { id: "WALLET_BTC", name: "Bitcoin Wallet", type: "WALLET", icon: "₿" },
     { id: "WALLET_SOL", name: "Solana Wallet", type: "WALLET", icon: "◎" },
@@ -96,7 +97,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
             setError(selectedProvider.includes("WALLET") ? "Address is required" : "API Key is required");
             return;
         }
-        if ((selectedProvider === "BINANCE" || selectedProvider === "OKX") && !formData.apiSecret) {
+        if ((selectedProvider === "BINANCE" || selectedProvider === "OKX" || selectedProvider === "KRAKEN") && !formData.apiSecret) {
             setError("API Secret is required");
             return;
         }
@@ -368,7 +369,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                                             )}
                                         </div>
 
-                                        {(selectedProvider === "BINANCE" || selectedProvider === "OKX") && (
+                                        {(selectedProvider === "BINANCE" || selectedProvider === "OKX" || selectedProvider === "KRAKEN") && (
                                             <div className="space-y-1">
                                                 <Label>API Secret</Label>
                                                 <Input

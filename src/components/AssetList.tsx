@@ -1,23 +1,81 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Landmark, TrendingUp, Bitcoin } from "lucide-react";
+import { Pencil, Trash2, Landmark, TrendingUp, Bitcoin, CloudDownload, UserCog } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Asset } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 
 import { CurrencyService } from "@/lib/currency";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface AssetListProps {
     assets: Asset[];
     onEdit: (asset: Asset) => void;
     onDelete: (id: string) => void;
+    onReorder?: (assets: Asset[]) => void;
 }
 
-export function AssetList({ assets, onEdit, onDelete }: AssetListProps) {
+function SortableAssetItem({ asset, children }: { asset: Asset, children: React.ReactNode }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: asset.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 10 : 1,
+        opacity: isDragging ? 0.5 : 1,
+        position: 'relative' as 'relative', // Explicitly cast to match CSSProperties
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            {children}
+        </div>
+    );
+}
+
+export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProps) {
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (active.id !== over?.id && onReorder) {
+            const oldIndex = assets.findIndex((item) => item.id === active.id);
+            const newIndex = assets.findIndex((item) => item.id === over?.id);
+
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newAssets = arrayMove(assets, oldIndex, newIndex);
+                // Update order field locally for the moved item and affected items?
+                // Actually, the backend reorder API expects a list of {id, order}.
+                // We should update the 'order' property of all items in the new list to reflect their new index.
+                const reorderedAssets = newAssets.map((asset, index) => ({ ...asset, order: index }));
+                onReorder(reorderedAssets);
+            }
+        }
+    };
     const AssetActions = ({ asset }: { asset: Asset }) => (
         <div className="flex items-center gap-2 ml-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(asset)}>
-                <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onEdit(asset)}
+                disabled={!!asset.integrationId}
+                title={asset.integrationId ? "Synced assets cannot be edited manually" : "Edit asset"}
+            >
+                <Pencil className={cn("h-4 w-4 text-muted-foreground", !asset.integrationId && "hover:text-primary")} />
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(asset.id!)}>
                 <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
@@ -38,30 +96,36 @@ export function AssetList({ assets, onEdit, onDelete }: AssetListProps) {
                 </CardHeader>
                 <CardContent className="flex-1">
                     {bankAssets.length > 0 ? (
-                        <div className="space-y-4">
-                            {bankAssets.map((asset) => (
-                                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                                    {/* ... existing item render ... */}
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium leading-none">{asset.name}</p>
-                                        <p className="text-xs text-muted-foreground">{asset.currency}</p>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <div className="text-right">
-                                            <div className="font-medium">
-                                                {CurrencyService.format(asset.balance || 0, asset.currency || "USD")}
-                                            </div>
-                                            {asset.currency && asset.currency !== "USD" && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    ≈ {CurrencyService.format(CurrencyService.convertToUSD(asset.balance || 0, asset.currency), "USD")}
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={bankAssets.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-4">
+                                    {bankAssets.map((asset) => (
+                                        <SortableAssetItem key={asset.id} asset={asset}>
+                                            <div className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 bg-card">
+                                                {/* ... existing item render ... */}
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-medium leading-none">{asset.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{asset.currency}</p>
                                                 </div>
-                                            )}
-                                        </div>
-                                        <AssetActions asset={asset} />
-                                    </div>
+                                                <div className="flex items-center">
+                                                    <div className="text-right">
+                                                        <div className="font-medium">
+                                                            {CurrencyService.format(asset.balance || 0, asset.currency || "USD")}
+                                                        </div>
+                                                        {asset.currency && asset.currency !== "USD" && (
+                                                            <div className="text-xs text-muted-foreground">
+                                                                ≈ {CurrencyService.format(CurrencyService.convertToUSD(asset.balance || 0, asset.currency), "USD")}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <AssetActions asset={asset} />
+                                                </div>
+                                            </div>
+                                        </SortableAssetItem>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </SortableContext>
+                        </DndContext>
                     ) : (
                         <EmptyState
                             icon={Landmark}
@@ -80,26 +144,39 @@ export function AssetList({ assets, onEdit, onDelete }: AssetListProps) {
                 </CardHeader>
                 <CardContent className="flex-1">
                     {stockAssets.length > 0 ? (
-                        <div className="space-y-4">
-                            {stockAssets.map((asset) => (
-                                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                                    {/* ... existing item render ... */}
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium leading-none">{asset.symbol}</p>
-                                        <p className="text-xs text-muted-foreground">{asset.quantity} shares</p>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <div className="text-right">
-                                            <div className="font-medium">${asset.totalValue?.toLocaleString()}</div>
-                                            <p className={cn("text-xs", (asset.change24h || 0) >= 0 ? "text-green-500" : "text-red-500")}>
-                                                {(asset.change24h || 0) > 0 ? "+" : ""}{Number(asset.change24h || 0).toFixed(2)}%
-                                            </p>
-                                        </div>
-                                        <AssetActions asset={asset} />
-                                    </div>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={stockAssets.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-4">
+                                    {stockAssets.map((asset) => (
+                                        <SortableAssetItem key={asset.id} asset={asset}>
+                                            <div className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 bg-card">
+                                                {/* ... existing item render ... */}
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-medium leading-none">{asset.symbol}</p>
+                                                    <p className="text-xs text-muted-foreground">{asset.quantity} shares</p>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <div className="text-right">
+                                                        <div className="font-medium">
+                                                            {CurrencyService.format(asset.totalValue || 0, asset.currency || "USD")}
+                                                        </div>
+                                                        {asset.currency && asset.currency !== "USD" && (
+                                                            <div className="text-xs text-muted-foreground">
+                                                                ≈ {CurrencyService.format(CurrencyService.convertToUSD(asset.totalValue || 0, asset.currency), "USD")}
+                                                            </div>
+                                                        )}
+                                                        <p className={cn("text-xs", (asset.change24h || 0) >= 0 ? "text-green-500" : "text-red-500")}>
+                                                            {(asset.change24h || 0) > 0 ? "+" : ""}{Number(asset.change24h || 0).toFixed(2)}%
+                                                        </p>
+                                                    </div>
+                                                    <AssetActions asset={asset} />
+                                                </div>
+                                            </div>
+                                        </SortableAssetItem>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </SortableContext>
+                        </DndContext>
                     ) : (
                         <EmptyState
                             icon={TrendingUp}
@@ -118,26 +195,48 @@ export function AssetList({ assets, onEdit, onDelete }: AssetListProps) {
                 </CardHeader>
                 <CardContent className="flex-1">
                     {cryptoAssets.length > 0 ? (
-                        <div className="space-y-4">
-                            {cryptoAssets.map((asset) => (
-                                <div key={asset.id} className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                                    {/* ... existing item render ... */}
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium leading-none">{asset.name}</p>
-                                        <p className="text-xs text-muted-foreground">{asset.quantity} coins</p>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <div className="text-right">
-                                            <div className="font-medium">${asset.totalValue?.toLocaleString()}</div>
-                                            <p className={cn("text-xs", (asset.change24h || 0) >= 0 ? "text-green-500" : "text-red-500")}>
-                                                {(asset.change24h || 0) > 0 ? "+" : ""}{Number(asset.change24h || 0).toFixed(2)}%
-                                            </p>
-                                        </div>
-                                        <AssetActions asset={asset} />
-                                    </div>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={cryptoAssets.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-4">
+                                    {cryptoAssets.map((asset) => (
+                                        <SortableAssetItem key={asset.id} asset={asset}>
+                                            <div className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 bg-card">
+                                                {/* ... existing item render ... */}
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    {asset.integrationId ? (
+                                                                        <CloudDownload className="h-3 w-3 text-blue-500" />
+                                                                    ) : (
+                                                                        <UserCog className="h-3 w-3 text-muted-foreground/50" />
+                                                                    )}
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>{asset.integrationId ? "Synced from Exchange/Wallet" : "Manually Added"}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                        <p className="text-sm font-medium leading-none">{asset.name}</p>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">{asset.quantity} coins</p>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <div className="text-right">
+                                                        <div className="font-medium">${asset.totalValue?.toLocaleString()}</div>
+                                                        <p className={cn("text-xs", (asset.change24h || 0) >= 0 ? "text-green-500" : "text-red-500")}>
+                                                            {(asset.change24h || 0) > 0 ? "+" : ""}{Number(asset.change24h || 0).toFixed(2)}%
+                                                        </p>
+                                                    </div>
+                                                    <AssetActions asset={asset} />
+                                                </div>
+                                            </div>
+                                        </SortableAssetItem>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </SortableContext>
+                        </DndContext>
                     ) : (
                         <EmptyState
                             icon={Bitcoin}

@@ -45,8 +45,8 @@ export default function DashboardCharts({ pieData, historyData, isLoading, asset
     // Custom Colors
     const CATEGORY_COLORS = {
         "Cash": "#10b981",   // Emerald-500
-        "Stock": "#6366f1",  // Indigo-500
-        "Crypto": "#8b5cf6", // Violet-500
+        "Stock": "#3b82f6",  // Blue-500
+        "Crypto": "#f59e0b", // Amber-500
     };
 
     // Calculate drill-down data

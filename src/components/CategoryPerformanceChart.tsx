@@ -88,7 +88,7 @@ export default function CategoryPerformanceChart({ data, isLoading }: CategoryPe
                             <Line
                                 type="monotone"
                                 dataKey="Stocks"
-                                stroke="#6366f1"
+                                stroke="#3b82f6"
                                 strokeWidth={2}
                                 dot={false}
                                 activeDot={{ r: 6, strokeWidth: 0 }}
@@ -96,7 +96,7 @@ export default function CategoryPerformanceChart({ data, isLoading }: CategoryPe
                             <Line
                                 type="monotone"
                                 dataKey="Crypto"
-                                stroke="#8b5cf6"
+                                stroke="#f59e0b"
                                 strokeWidth={2}
                                 dot={false}
                                 activeDot={{ r: 6, strokeWidth: 0 }}

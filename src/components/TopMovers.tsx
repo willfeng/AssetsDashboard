@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Asset } from "@/types";
+import { Asset, StockAsset, CryptoAsset } from "@/types";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ export default function TopMovers({ assets, isLoading }: TopMoversProps) {
 
     // Filter only assets with change24h data (Stocks & Crypto)
     const movers = assets
-        .filter((a) => (a.type === "STOCK" || a.type === "CRYPTO") && a.change24h !== undefined)
+        .filter((a): a is StockAsset | CryptoAsset => (a.type === "STOCK" || a.type === "CRYPTO") && a.change24h !== undefined)
         .sort((a, b) => (b.change24h || 0) - (a.change24h || 0));
 
     const topGainers = movers.slice(0, 3);

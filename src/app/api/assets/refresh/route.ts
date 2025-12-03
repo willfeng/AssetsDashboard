@@ -13,7 +13,11 @@ export async function POST() {
         }
 
         const assets = await prisma.asset.findMany({
-            where: { userId: user.id }
+            where: { userId: user.id },
+            orderBy: [
+                { order: 'asc' },
+                { createdAt: 'desc' }
+            ]
         });
 
         console.log(`[API] Refreshing prices for ${assets.length} assets...`);

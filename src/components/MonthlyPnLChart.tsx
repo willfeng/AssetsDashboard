@@ -65,7 +65,13 @@ export default function MonthlyPnLChart({ data, isLoading }: MonthlyPnLProps) {
                                 tick={{ fontSize: 12, fill: "#6B7280" }}
                                 axisLine={false}
                                 tickLine={false}
-                                width={40}
+                                width={60}
+                                tickFormatter={(value) => new Intl.NumberFormat('en-US', { 
+                                    style: 'currency', 
+                                    currency: 'USD', 
+                                    notation: "compact", 
+                                    maximumFractionDigits: 1 
+                                }).format(value)}
                             />
                             <Tooltip
                                 cursor={{ fill: 'transparent' }}

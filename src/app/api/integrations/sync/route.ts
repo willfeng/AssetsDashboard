@@ -102,7 +102,10 @@ export async function POST(request: Request) {
             if (existingAsset) {
                 await prisma.asset.update({
                     where: { id: existingAsset.id },
-                    data: { quantity: quantity }
+                    data: {
+                        quantity: quantity,
+                        integrationId: integration.id
+                    }
                 });
             } else {
                 await prisma.asset.create({
@@ -113,6 +116,7 @@ export async function POST(request: Request) {
                         symbol: symbol.toUpperCase(),
                         quantity: quantity,
                         currency: 'USD',
+                        integrationId: integration.id
                     }
                 });
             }

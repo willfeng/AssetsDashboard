@@ -13,7 +13,10 @@ export async function GET() {
 
         const assets = await prisma.asset.findMany({
             where: { userId: user.id },
-            orderBy: { createdAt: 'desc' }
+            orderBy: [
+                { order: 'asc' },
+                { createdAt: 'desc' }
+            ]
         });
         console.log(`[API] Fetching assets for ${user.id}. Found: ${assets.length}`);
 
@@ -44,6 +47,7 @@ export async function GET() {
                 balance: asset.balance || 0,
                 quantity: asset.quantity || 0,
                 currency: asset.currency || 'USD',
+                integrationId: asset.integrationId,
                 currentPrice,
                 totalValue,
                 change24h

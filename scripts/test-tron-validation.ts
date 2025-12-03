@@ -25,7 +25,7 @@ async function main() {
         // Method 2: utils.crypto
         console.log("\nMethod 2: TronWeb.utils.crypto.isAddressValid()");
         try {
-            const result2 = TronWeb.utils.crypto.isAddressValid(testAddress);
+            const result2 = (TronWeb as any).utils.crypto.isAddressValid(testAddress);
             console.log(`  Result:`, result2);
         } catch (e: any) {
             console.log(`  Error:`, e.message);
@@ -33,20 +33,7 @@ async function main() {
 
         // Method 3: Check typeof
         console.log("\nMethod 3: Checking TronWeb structure");
-        console.log("  TronWeb.utils:", typeof TronWeb.utils);
-        console.log("  TronWeb.utils.crypto:", typeof TronWeb.utils?.crypto);
-        console.log("  TronWeb.utils.crypto.isAddressValid:", typeof TronWeb.utils?.crypto?.isAddressValid);
-
-        // Method 4: Try to get balance (if it doesn't throw, address is valid)
-        console.log("\nMethod 4: Try getBalance as validation");
-        try {
-            const balance = await tronWeb.trx.getBalance(testAddress);
-            console.log(`  Success! Balance: ${balance} Sun`);
-            console.log(`  Balance in TRX: ${tronWeb.fromSun(balance)}`);
-        } catch (e: any) {
-            console.log(`  Error:`, e.message);
-        }
-
+        console.log("  TronWeb.utils:", typeof (TronWeb as any).utils);
     } catch (error: any) {
         console.error("\nFatal Error:", error.message);
     }

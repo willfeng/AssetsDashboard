@@ -23,6 +23,7 @@ const stockSchema = z.object({
     name: z.string().min(1, "Name is required"),
     symbol: z.string().min(1, "Symbol is required").toUpperCase(),
     quantity: z.coerce.number().min(0.000001, "Quantity must be positive"),
+    currency: z.enum(["USD", "HKD", "CNY", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD"]),
 })
 
 const cryptoSchema = z.object({
@@ -59,7 +60,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
         defaultValues: initialData ? {
             name: initialData.name,
             balance: initialData.type === 'BANK' ? initialData.balance : 0,
-            currency: (initialData.type === 'BANK' ? initialData.currency : "USD") as "USD" | "HKD" | "CNY" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "SGD",
+            currency: (initialData.currency || "USD") as "USD" | "HKD" | "CNY" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "SGD",
             symbol: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.symbol : "",
             quantity: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.quantity : 0,
             apy: initialData.type === 'BANK' ? (initialData.apy || 0) : 0
@@ -329,6 +330,32 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                                 </FormItem>
                                             )}
                                         />
+                                        {activeTab === "STOCK" && (
+                                            <FormField
+                                                control={form.control}
+                                                name="currency"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Currency</FormLabel>
+                                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                            <FormControl><SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger></FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="USD">USD</SelectItem>
+                                                                <SelectItem value="HKD">HKD</SelectItem>
+                                                                <SelectItem value="CNY">CNY</SelectItem>
+                                                                <SelectItem value="EUR">EUR</SelectItem>
+                                                                <SelectItem value="GBP">GBP</SelectItem>
+                                                                <SelectItem value="JPY">JPY</SelectItem>
+                                                                <SelectItem value="AUD">AUD</SelectItem>
+                                                                <SelectItem value="CAD">CAD</SelectItem>
+                                                                <SelectItem value="SGD">SGD</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
                                         <FormField
                                             control={form.control}
                                             name="quantity"
