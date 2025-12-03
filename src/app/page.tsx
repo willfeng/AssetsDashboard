@@ -359,8 +359,8 @@ export default function Dashboard() {
       </Card>
 
       {/* Middle Row: Charts */}
-      <div id="analytics">
-        <DashboardCharts pieData={pieData} historyData={historyData} isLoading={loading} />
+      <div id="analytics" className="space-y-8">
+        <DashboardCharts pieData={pieData} historyData={historyData} isLoading={loading} assets={assets} />
       </div>
 
       {/* Bottom Row: Asset Lists (3 Columns) */}
