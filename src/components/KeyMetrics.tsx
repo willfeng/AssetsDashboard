@@ -10,17 +10,13 @@ interface MetricsData {
     maxDrawdown: { value: number; date: Date | null };
     sharpeRatio: number;
     volatility: number;
+    sparkline: { value: number }[];
 }
 
 interface KeyMetricsProps {
     metrics: MetricsData | null;
     isLoading?: boolean;
 }
-
-// Mock sparkline data for visual effect (in a real app, this would come from history)
-const sparklineData = [
-    { value: 10 }, { value: 15 }, { value: 12 }, { value: 20 }, { value: 18 }, { value: 25 }, { value: 22 }
-];
 
 export default function KeyMetrics({ metrics, isLoading }: KeyMetricsProps) {
     if (isLoading) {
@@ -94,7 +90,7 @@ export default function KeyMetrics({ metrics, isLoading }: KeyMetricsProps) {
                         {/* Sparkline Background */}
                         <div className="absolute bottom-0 left-0 right-0 h-12 opacity-10">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={sparklineData}>
+                                <AreaChart data={metrics.sparkline}>
                                     <Area
                                         type="monotone"
                                         dataKey="value"

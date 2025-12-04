@@ -57,6 +57,18 @@ export class CurrencyService {
     }
 
     /**
+     * Format a value with compact notation (e.g. $1.2M)
+     */
+    static formatCompact(amount: number, currency: string): string {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency,
+            notation: "compact",
+            maximumFractionDigits: 1
+        }).format(amount);
+    }
+
+    /**
      * Fetch latest rates from backend API
      */
     static async fetchRates() {

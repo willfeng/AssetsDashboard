@@ -33,6 +33,7 @@ export default function Dashboard() {
   const [returnVal, setReturnVal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [dashboardMetrics, setDashboardMetrics] = useState({ monthHigh: 0, monthLow: 0, ytd: 0, today: { value: 0, percent: 0 } });
 
   // Edit/Delete State
   const [editingAsset, setEditingAsset] = useState<Asset | undefined>(undefined);
@@ -91,6 +92,21 @@ export default function Dashboard() {
     }
   }, [timeRange]);
 
+  const fetchMetrics = useCallback(async () => {
+    try {
+      // Range parameter is required by API but dashboard metrics are calculated independently
+      const res = await fetch('/api/analytics/metrics?range=1Y');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.dashboard) {
+          setDashboardMetrics(data.dashboard);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch metrics:", error);
+    }
+  }, []);
+
   const refreshPrices = useCallback(async () => {
     try {
       console.log("Refreshing prices...");
@@ -100,11 +116,12 @@ export default function Dashboard() {
         setAssets(data.assets); // Update with fresh data directly
         setLastUpdated(new Date());
         fetchHistory(); // Refresh history too
+        fetchMetrics(); // Refresh metrics
       }
     } catch (error) {
       console.error("Failed to refresh prices:", error);
     }
-  }, [fetchHistory]);
+  }, [fetchHistory, fetchMetrics]);
 
   // Auto-Sync Logic
   const checkAutoSync = useCallback(async () => {
@@ -160,7 +177,7 @@ export default function Dashboard() {
       await CurrencyService.fetchRates();
 
       // 1. Fetch data in parallel for faster initial render
-      await Promise.all([fetchAssets(), fetchHistory()]);
+      await Promise.all([fetchAssets(), fetchHistory(), fetchMetrics()]);
       setLoading(false);
 
       // 2. Run auto-sync in background (don't block UI)
@@ -171,7 +188,7 @@ export default function Dashboard() {
     // Poll for price updates every 5 minutes
     const interval = setInterval(refreshPrices, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [fetchAssets, fetchHistory, refreshPrices, checkAutoSync]);
+  }, [fetchAssets, fetchHistory, fetchMetrics, refreshPrices, checkAutoSync]);
 
   // Handlers
   const handleEdit = (asset: Asset) => {
@@ -196,8 +213,6 @@ export default function Dashboard() {
     }
   };
 
-
-
   const handleReorder = async (newAssets: Asset[]) => {
     // Optimistic update
     setAssets(newAssets);
@@ -220,8 +235,6 @@ export default function Dashboard() {
     }
   };
 
-  // ...
-
   // Calculate totals
   const totalBalance = assets.reduce((sum, asset) => {
     const rawValue = asset.type === "BANK" ? asset.balance : (asset.totalValue || 0);
@@ -238,8 +251,6 @@ export default function Dashboard() {
   }, {} as Record<string, number>);
 
   const pieData = Object.entries(allocation).map(([name, value]) => ({ name, value }));
-
-
 
   return (
     <div className="p-8 space-y-8" id="dashboard">
@@ -318,8 +329,11 @@ export default function Dashboard() {
             <div className="space-y-2">
               <h2 className="text-sm font-medium text-muted-foreground">Total Net Worth (USD)</h2>
               <div className="text-4xl font-bold">${totalBalance.toLocaleString()}</div>
-              <div className="flex items-center text-sm text-green-500">
-                <span className="font-medium">+2.5% (+$31,250)</span>
+              <div className={cn("flex items-center text-sm", dashboardMetrics.today.value >= 0 ? "text-green-500" : "text-red-500")}>
+                <span className="font-medium">
+                  {dashboardMetrics.today.value > 0 ? "+" : ""}
+                  {dashboardMetrics.today.percent.toFixed(1)}% ({dashboardMetrics.today.value > 0 ? "+" : ""}{CurrencyService.format(dashboardMetrics.today.value, "USD")})
+                </span>
                 <span className="ml-2 text-muted-foreground">Today</span>
               </div>
             </div>
@@ -328,15 +342,17 @@ export default function Dashboard() {
             <div className="grid grid-cols-3 gap-4 md:gap-8 border-t md:border-t-0 md:border-l md:border-r pt-4 md:pt-0 md:px-8 mt-4 md:mt-0 w-full md:w-auto">
               <div className="space-y-1 text-center md:text-left">
                 <p className="text-xs text-muted-foreground">Month High</p>
-                <p className="font-semibold text-sm md:text-base">$1,280,000</p>
+                <p className="font-semibold text-sm md:text-base">{CurrencyService.format(dashboardMetrics.monthHigh, "USD")}</p>
               </div>
               <div className="space-y-1 text-center md:text-left">
                 <p className="text-xs text-muted-foreground">Month Low</p>
-                <p className="font-semibold text-sm md:text-base">$1,150,000</p>
+                <p className="font-semibold text-sm md:text-base">{CurrencyService.format(dashboardMetrics.monthLow, "USD")}</p>
               </div>
               <div className="space-y-1 text-center md:text-left">
                 <p className="text-xs text-muted-foreground">YTD</p>
-                <p className="font-semibold text-sm md:text-base text-green-500">+15.4%</p>
+                <p className={cn("font-semibold text-sm md:text-base", dashboardMetrics.ytd >= 0 ? "text-green-500" : "text-red-500")}>
+                  {dashboardMetrics.ytd > 0 ? "+" : ""}{dashboardMetrics.ytd.toFixed(1)}%
+                </p>
               </div>
             </div>
 

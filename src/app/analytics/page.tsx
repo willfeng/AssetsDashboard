@@ -20,6 +20,7 @@ interface MetricsData {
     worstDay: { date: string; value: number; percent: number };
     longestWinStreak: number;
     longestLossStreak: number;
+    sparkline: { value: number }[];
 }
 
 interface CategoryPerformanceData {

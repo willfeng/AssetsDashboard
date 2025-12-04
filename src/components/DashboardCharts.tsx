@@ -14,6 +14,7 @@ import {
 import { EmptyState } from "@/components/EmptyState";
 import { PieChart as PieChartIcon, TrendingUp, ChevronLeft } from "lucide-react";
 import { CurrencyService } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -177,21 +178,39 @@ export default function DashboardCharts({ pieData, historyData, isLoading, asset
                     </div>
 
                     {/* Dynamic Legend */}
-                    <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                    <div className={cn(
+                        "mt-4 grid gap-3 text-sm",
+                        drillDownCategory ? "grid-cols-2" : "grid-cols-1"
+                    )}>
                         {currentPieData.map((entry, index) => (
-                            <div key={entry.name} className="flex items-center gap-2">
-                                <div
-                                    className="h-3 w-3 rounded-full"
-                                    style={{
-                                        backgroundColor: drillDownCategory
-                                            ? COLORS[index % COLORS.length]
-                                            : (CATEGORY_COLORS[entry.name as keyof typeof CATEGORY_COLORS] || "#8884d8")
-                                    }}
-                                />
-                                <span className="truncate" title={entry.name}>{entry.name}</span>
-                                <span className="ml-auto text-muted-foreground text-xs">
-                                    {((entry.value / currentTotal) * 100).toFixed(1)}%
-                                </span>
+                            <div key={entry.name} className={cn(
+                                "flex items-center gap-2",
+                                !drillDownCategory && "justify-between"
+                            )}>
+                                <div className="flex items-center gap-2 truncate">
+                                    <div
+                                        className="h-3 w-3 shrink-0 rounded-full"
+                                        style={{
+                                            backgroundColor: drillDownCategory
+                                                ? COLORS[index % COLORS.length]
+                                                : (CATEGORY_COLORS[entry.name as keyof typeof CATEGORY_COLORS] || "#8884d8")
+                                        }}
+                                    />
+                                    <span className="truncate font-medium" title={entry.name}>{entry.name}</span>
+                                </div>
+
+                                {drillDownCategory ? (
+                                    <span className="ml-auto text-muted-foreground text-xs">
+                                        {((entry.value / currentTotal) * 100).toFixed(1)}%
+                                    </span>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
+                                        <span className="font-mono">{CurrencyService.format(entry.value, "USD")}</span>
+                                        <span className="bg-muted px-1.5 py-0.5 rounded-md text-[10px] font-medium text-foreground">
+                                            {((entry.value / currentTotal) * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -227,11 +246,12 @@ export default function DashboardCharts({ pieData, historyData, isLoading, asset
                                         minTickGap={32}
                                     />
                                     <YAxis
-                                        width={80}
+                                        width={45}
                                         tickLine={true}
                                         axisLine={true}
-                                        tickFormatter={(value) => `$${value}`}
-                                        tick={{ textAnchor: 'start', dx: -75 }}
+                                        tickFormatter={(value) => CurrencyService.formatCompact(value, "USD")}
+                                        tick={{ fontSize: 12 }}
+                                        tickMargin={5}
                                     />
                                     <ChartTooltip
                                         cursor={false}

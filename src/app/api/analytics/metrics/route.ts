@@ -178,6 +178,13 @@ export async function GET(req: NextRequest) {
                 wins: maxWinStreak,
                 losses: maxLossStreak,
             },
+            dashboard: {
+                monthHigh: await calculateMonthHigh(user.id),
+                monthLow: await calculateMonthLow(user.id),
+                ytd: await calculateYTD(user.id),
+                today: await calculateToday(user.id),
+            },
+            sparkline: history.slice(-30).map(h => ({ value: h.value })),
         });
     } catch (error) {
         console.error("Error calculating metrics:", error);
@@ -186,4 +193,86 @@ export async function GET(req: NextRequest) {
             { status: 500 }
         );
     }
+}
+
+async function calculateMonthHigh(userId: string) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+
+    const history = await prisma.history.findMany({
+        where: {
+            userId,
+            date: {
+                gte: startDate.toISOString().split('T')[0],
+            },
+        },
+        select: { value: true },
+    });
+
+    if (history.length === 0) return 0;
+    return Math.max(...history.map(h => h.value));
+}
+
+async function calculateMonthLow(userId: string) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+
+    const history = await prisma.history.findMany({
+        where: {
+            userId,
+            date: {
+                gte: startDate.toISOString().split('T')[0],
+            },
+        },
+        select: { value: true },
+    });
+
+    if (history.length === 0) return 0;
+    return Math.min(...history.map(h => h.value));
+}
+
+async function calculateYTD(userId: string) {
+    const currentYear = new Date().getFullYear();
+    const startDate = `${currentYear}-01-01`;
+
+    // Get first record of the year
+    const startRecord = await prisma.history.findFirst({
+        where: {
+            userId,
+            date: { gte: startDate }
+        },
+        orderBy: { date: 'asc' }
+    });
+
+    // Get latest record
+    const endRecord = await prisma.history.findFirst({
+        where: { userId },
+        orderBy: { date: 'desc' }
+    });
+
+    if (!startRecord || !endRecord || startRecord.value === 0) return 0;
+
+    return ((endRecord.value - startRecord.value) / startRecord.value) * 100;
+}
+
+async function calculateToday(userId: string) {
+    const history = await prisma.history.findMany({
+        where: { userId },
+        orderBy: { date: 'desc' },
+        take: 2
+    });
+
+    if (history.length < 2) {
+        return { value: 0, percent: 0 };
+    }
+
+    const today = history[0];
+    const yesterday = history[1];
+
+    const change = today.value - yesterday.value;
+    const percent = yesterday.value !== 0 ? (change / yesterday.value) * 100 : 0;
+
+    return { value: change, percent };
 }
