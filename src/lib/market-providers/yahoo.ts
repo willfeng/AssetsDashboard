@@ -28,5 +28,17 @@ export const YahooProvider: StockDataProvider = {
         }
 
         return { price, change24h };
+    },
+
+    async getHistorical(symbol: string, queryOptions: any): Promise<any[]> {
+        console.log(`[YahooProvider] Fetching history for ${symbol}`);
+        try {
+            const yahooFinance = (await import('yahoo-finance2')).default;
+            const result = await yahooFinance.historical(symbol, queryOptions);
+            return result;
+        } catch (error) {
+            console.error(`[YahooProvider] Failed to fetch history for ${symbol}:`, error);
+            throw error;
+        }
     }
 };

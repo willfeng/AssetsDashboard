@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Area, AreaChart, Line, LineChart, XAxis, YAxis, PieChart, Pie, Cell, CartesianGrid, Label } from "recharts";
+import { PieChart, Pie, Cell, Label } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { HistoricalDataPoint, Asset } from "@/types";
@@ -12,9 +12,10 @@ import {
     ChartConfig,
 } from "@/components/ui/chart";
 import { EmptyState } from "@/components/EmptyState";
-import { PieChart as PieChartIcon, TrendingUp, ChevronLeft } from "lucide-react";
+import { PieChart as PieChartIcon, ChevronLeft } from "lucide-react";
 import { CurrencyService } from "@/lib/currency";
 import { cn } from "@/lib/utils";
+import { AssetTrendChart } from "./AssetTrendChart";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -23,14 +24,8 @@ interface DashboardChartsProps {
     historyData: HistoricalDataPoint[];
     isLoading: boolean;
     assets: Asset[];
+    hideTrendOnMobile?: boolean;
 }
-
-const chartConfig = {
-    value: {
-        label: "Value",
-        color: "#2563eb",
-    },
-} satisfies ChartConfig;
 
 const pieConfig = {
     value: {
@@ -38,7 +33,7 @@ const pieConfig = {
     },
 } satisfies ChartConfig;
 
-export default function DashboardCharts({ pieData, historyData, isLoading, assets }: DashboardChartsProps) {
+export default function DashboardCharts({ pieData, historyData, isLoading, assets, hideTrendOnMobile = false }: DashboardChartsProps) {
     const [drillDownCategory, setDrillDownCategory] = useState<string | null>(null);
 
     const totalValue = pieData.reduce((acc, curr) => acc + curr.value, 0);
@@ -217,65 +212,12 @@ export default function DashboardCharts({ pieData, historyData, isLoading, asset
                 </CardContent>
             </Card>
 
-            <Card className="col-span-1 md:col-span-2 flex flex-col">
+            <Card className={cn("col-span-1 md:col-span-2 flex flex-col", hideTrendOnMobile && "hidden md:flex")}>
                 <CardHeader>
                     <CardTitle>Asset Trend</CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 pl-2">
-                    <div className="h-[350px] w-full">
-                        {isLoading ? (
-                            <div className="flex items-center justify-center h-full text-muted-foreground">
-                                Loading trend data...
-                            </div>
-                        ) : historyData.length > 0 ? (
-                            <ChartContainer config={chartConfig} className="h-full w-full">
-                                <LineChart
-                                    data={historyData}
-                                    margin={{
-                                        left: 12,
-                                        right: 12,
-                                        bottom: 20,
-                                    }}
-                                >
-                                    <CartesianGrid vertical={false} strokeDasharray="3 3" strokeOpacity={0.2} />
-                                    <XAxis
-                                        dataKey="date"
-                                        tickLine={true}
-                                        axisLine={true}
-                                        tickMargin={10}
-                                        minTickGap={32}
-                                    />
-                                    <YAxis
-                                        width={45}
-                                        tickLine={true}
-                                        axisLine={true}
-                                        tickFormatter={(value) => CurrencyService.formatCompact(value, "USD")}
-                                        tick={{ fontSize: 12 }}
-                                        tickMargin={5}
-                                    />
-                                    <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent indicator="line" />}
-                                    />
-                                    <Line
-                                        dataKey="value"
-                                        type="monotone"
-                                        stroke="var(--color-value)"
-                                        strokeWidth={2}
-                                        dot={false}
-                                        connectNulls={true}
-                                    />
-                                </LineChart>
-                            </ChartContainer>
-                        ) : (
-                            <EmptyState
-                                icon={TrendingUp}
-                                title="No Trend Data"
-                                description="History will appear after you add assets."
-                                className="h-full"
-                            />
-                        )}
-                    </div>
+                    <AssetTrendChart data={historyData} isLoading={isLoading} height={350} />
                 </CardContent>
             </Card>
         </div>

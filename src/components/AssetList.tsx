@@ -67,19 +67,24 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
         }
     };
     const AssetActions = ({ asset }: { asset: Asset }) => (
-        <div className="flex items-center gap-2 ml-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 ml-2">
             <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7 text-muted-foreground/50 hover:text-primary"
                 onClick={() => onEdit(asset)}
                 disabled={!!asset.integrationId}
                 title={asset.integrationId ? "Synced assets cannot be edited manually" : "Edit asset"}
             >
-                <Pencil className={cn("h-4 w-4 text-muted-foreground", !asset.integrationId && "hover:text-primary")} />
+                <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(asset.id!)}>
-                <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground/50 hover:text-destructive"
+                onClick={() => onDelete(asset.id!)}
+            >
+                <Trash2 className="h-3.5 w-3.5" />
             </Button>
         </div>
     );
@@ -99,10 +104,10 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                     {bankAssets.length > 0 ? (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={bankAssets.map(a => a.id)} strategy={verticalListSortingStrategy}>
-                                <div className="space-y-4">
+                                <div className="space-y-5">
                                     {bankAssets.map((asset) => (
                                         <SortableAssetItem key={asset.id} asset={asset}>
-                                            <div className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 bg-card">
+                                            <div className="group flex items-center justify-between gap-4 py-2 px-2 hover:bg-muted/50 rounded-lg transition-colors">
                                                 {/* ... existing item render ... */}
                                                 <div className="space-y-1">
                                                     <p className="text-sm font-medium leading-none">{asset.name}</p>
@@ -147,10 +152,10 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                     {stockAssets.length > 0 ? (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={stockAssets.map(a => a.id)} strategy={verticalListSortingStrategy}>
-                                <div className="space-y-4">
+                                <div className="space-y-5">
                                     {stockAssets.map((asset) => (
                                         <SortableAssetItem key={asset.id} asset={asset}>
-                                            <div className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 bg-card">
+                                            <div className="group flex items-center justify-between gap-4 py-2 px-2 hover:bg-muted/50 rounded-lg transition-colors">
                                                 {/* ... existing item render ... */}
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2">
@@ -211,10 +216,10 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                     {cryptoAssets.length > 0 ? (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={cryptoAssets.map(a => a.id)} strategy={verticalListSortingStrategy}>
-                                <div className="space-y-4">
+                                <div className="space-y-5">
                                     {cryptoAssets.map((asset) => (
                                         <SortableAssetItem key={asset.id} asset={asset}>
-                                            <div className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 bg-card">
+                                            <div className="group flex items-center justify-between gap-4 py-2 px-2 hover:bg-muted/50 rounded-lg transition-colors">
                                                 {/* ... existing item render ... */}
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-1.5">

@@ -85,5 +85,49 @@ export const MarketDataService = {
             console.error(`[MarketData] Binance error for ${pair}:`, error);
             return { price: 0, change24h: 0 };
         }
+    },
+
+    async getHistoricalPrices(symbol: string, type: 'STOCK' | 'CRYPTO', startDate: Date, endDate: Date): Promise<Array<{ date: string, price: number }>> {
+        if (type === 'STOCK') {
+            try {
+                // Yahoo Finance
+                const queryOptions = {
+                    period1: startDate,
+                    period2: endDate,
+                    interval: '1d' as const
+                };
+                const result = await YahooProvider.getHistorical(symbol, queryOptions);
+                return result.map(quote => ({
+                    date: quote.date.toISOString().split('T')[0],
+                    price: quote.close
+                }));
+            } catch (error) {
+                console.error(`[MarketData] Failed to fetch history for stock ${symbol}:`, error);
+                return [];
+            }
+        } else if (type === 'CRYPTO') {
+            try {
+                // Binance (via CCXT or direct API)
+                // Using direct API for simplicity and consistency with getCryptoPrice
+                const pair = `${symbol.toUpperCase()}USDT`;
+                const startTime = startDate.getTime();
+                const endTime = endDate.getTime();
+
+                const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=${pair}&interval=1d&startTime=${startTime}&endTime=${endTime}`);
+
+                if (!response.ok) throw new Error(`Binance API error: ${response.statusText}`);
+
+                const data = await response.json();
+                // Binance kline format: [open time, open, high, low, close, volume, close time, ...]
+                return data.map((kline: any[]) => ({
+                    date: new Date(kline[0]).toISOString().split('T')[0],
+                    price: parseFloat(kline[4]) // Close price
+                }));
+            } catch (error) {
+                console.error(`[MarketData] Failed to fetch history for crypto ${symbol}:`, error);
+                return [];
+            }
+        }
+        return [];
     }
 };

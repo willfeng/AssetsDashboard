@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CurrencyService } from "@/lib/currency";
+import { AssetTrendChart } from "@/components/AssetTrendChart";
 
 const DashboardCharts = dynamic(() => import("@/components/DashboardCharts"), { ssr: false });
 
@@ -387,12 +388,45 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* Mobile Trend Chart */}
+          <div className="mt-6 block md:hidden h-[200px] w-full -ml-2">
+            <AssetTrendChart
+              data={(() => {
+                if (historyData.length === 0) return [];
+                const today = new Date().toISOString().split('T')[0];
+                const lastPoint = historyData[historyData.length - 1];
+                const newData = [...historyData];
+                if (lastPoint.date === today) {
+                  newData[newData.length - 1] = { ...lastPoint, value: totalBalance };
+                }
+                return newData;
+              })()}
+              isLoading={loading}
+              height="100%"
+            />
+          </div>
         </CardContent>
       </Card>
 
       {/* Middle Row: Charts */}
       <div id="analytics" className="space-y-8">
-        <DashboardCharts pieData={pieData} historyData={historyData} isLoading={loading} assets={assets} />
+        <DashboardCharts
+          pieData={pieData}
+          historyData={(() => {
+            if (historyData.length === 0) return [];
+            const today = new Date().toISOString().split('T')[0];
+            const lastPoint = historyData[historyData.length - 1];
+            const newData = [...historyData];
+            if (lastPoint.date === today) {
+              newData[newData.length - 1] = { ...lastPoint, value: totalBalance };
+            }
+            return newData;
+          })()}
+          isLoading={loading}
+          assets={assets}
+          hideTrendOnMobile={true}
+        />
       </div>
 
       {/* Bottom Row: Asset Lists (3 Columns) */}

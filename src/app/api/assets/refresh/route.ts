@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { MarketDataService } from '@/lib/market-data';
 import { recordDailyHistoryWithTotal, recordAssetSnapshot } from '@/lib/history';
+import { checkAndBackfillHistory } from '@/lib/backfill';
 
 export async function POST() {
     try {
@@ -52,6 +53,9 @@ export async function POST() {
                 totalValue: asset.balance || 0
             };
         }));
+
+        // Check for missing history and backfill if needed
+        await checkAndBackfillHistory(user.id);
 
         // Optionally record history snapshot
         await recordDailyHistoryWithTotal(user.id);
