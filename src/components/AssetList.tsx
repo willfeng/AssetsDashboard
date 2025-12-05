@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Landmark, TrendingUp, Bitcoin, CloudDownload, UserCog } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -152,7 +153,12 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                                             <div className="group flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 bg-card">
                                                 {/* ... existing item render ... */}
                                                 <div className="space-y-1">
-                                                    <p className="text-sm font-medium leading-none">{asset.symbol}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-medium leading-none">{asset.symbol}</p>
+                                                        <Badge variant="secondary" className={cn("text-[10px] px-1 py-0 h-5 font-normal", (asset.change24h || 0) >= 0 ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50")}>
+                                                            {(asset.change24h || 0) > 0 ? "+" : ""}{Number(asset.change24h || 0).toFixed(2)}%
+                                                        </Badge>
+                                                    </div>
                                                     <p className="text-xs text-muted-foreground">{asset.quantity} shares</p>
                                                 </div>
                                                 <div className="flex items-center">
@@ -165,9 +171,17 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                                                                 ≈ {CurrencyService.format(CurrencyService.convertToUSD(asset.totalValue || 0, asset.currency), "USD")}
                                                             </div>
                                                         )}
-                                                        <p className={cn("text-xs", (asset.change24h || 0) >= 0 ? "text-green-500" : "text-red-500")}>
-                                                            {(asset.change24h || 0) > 0 ? "+" : ""}{Number(asset.change24h || 0).toFixed(2)}%
-                                                        </p>
+                                                        {asset.averageBuyPrice && asset.averageBuyPrice > 0 && asset.quantity > 0 && (
+                                                            <div className="text-[10px] mt-0.5 flex justify-end gap-1">
+                                                                <span className="text-muted-foreground">Ret:</span>
+                                                                <span className={cn(
+                                                                    (asset.currentPrice - asset.averageBuyPrice) >= 0 ? "text-green-500" : "text-red-500"
+                                                                )}>
+                                                                    {((asset.currentPrice - asset.averageBuyPrice) >= 0 ? "+" : "")}
+                                                                    {((asset.currentPrice - asset.averageBuyPrice) / asset.averageBuyPrice * 100).toFixed(1)}%
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <AssetActions asset={asset} />
                                                 </div>
@@ -219,15 +233,26 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                                                             </Tooltip>
                                                         </TooltipProvider>
                                                         <p className="text-sm font-medium leading-none">{asset.name}</p>
+                                                        <Badge variant="secondary" className={cn("text-[10px] px-1 py-0 h-5 font-normal", (asset.change24h || 0) >= 0 ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50")}>
+                                                            {(asset.change24h || 0) > 0 ? "+" : ""}{Number(asset.change24h || 0).toFixed(2)}%
+                                                        </Badge>
                                                     </div>
                                                     <p className="text-xs text-muted-foreground">{asset.quantity} coins</p>
                                                 </div>
                                                 <div className="flex items-center">
                                                     <div className="text-right">
                                                         <div className="font-medium">${asset.totalValue?.toLocaleString()}</div>
-                                                        <p className={cn("text-xs", (asset.change24h || 0) >= 0 ? "text-green-500" : "text-red-500")}>
-                                                            {(asset.change24h || 0) > 0 ? "+" : ""}{Number(asset.change24h || 0).toFixed(2)}%
-                                                        </p>
+                                                        {asset.averageBuyPrice && asset.averageBuyPrice > 0 && asset.quantity > 0 && (
+                                                            <div className="text-[10px] mt-0.5 flex justify-end gap-1">
+                                                                <span className="text-muted-foreground">Ret:</span>
+                                                                <span className={cn(
+                                                                    (asset.currentPrice - asset.averageBuyPrice) >= 0 ? "text-green-500" : "text-red-500"
+                                                                )}>
+                                                                    {((asset.currentPrice - asset.averageBuyPrice) >= 0 ? "+" : "")}
+                                                                    {((asset.currentPrice - asset.averageBuyPrice) / asset.averageBuyPrice * 100).toFixed(1)}%
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <AssetActions asset={asset} />
                                                 </div>
@@ -246,7 +271,7 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                         />
                     )}
                 </CardContent>
-            </Card>
-        </div>
+            </Card >
+        </div >
     );
 }

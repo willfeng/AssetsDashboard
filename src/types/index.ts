@@ -20,6 +20,7 @@ export interface StockAsset {
     totalValue: number;
     change24h: number; // Percentage
     currency?: string;
+    averageBuyPrice?: number;
     integrationId?: string;
     order?: number;
     type: 'STOCK';
@@ -34,6 +35,7 @@ export interface CryptoAsset {
     totalValue: number;
     change24h: number; // Percentage
     currency?: string;
+    averageBuyPrice?: number;
     integrationId?: string;
     order?: number;
     type: 'CRYPTO';

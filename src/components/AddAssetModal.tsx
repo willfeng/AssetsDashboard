@@ -24,12 +24,14 @@ const stockSchema = z.object({
     symbol: z.string().min(1, "Symbol is required").toUpperCase(),
     quantity: z.coerce.number().min(0.000001, "Quantity must be positive"),
     currency: z.enum(["USD", "HKD", "CNY", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD"]),
+    averageBuyPrice: z.coerce.number().optional(),
 })
 
 const cryptoSchema = z.object({
     name: z.string().min(1, "Name is required"),
     symbol: z.string().min(1, "Symbol is required").toUpperCase(),
     quantity: z.coerce.number().min(0.000001, "Quantity must be positive"),
+    averageBuyPrice: z.coerce.number().optional(),
 })
 
 type AssetType = 'BANK' | 'STOCK' | 'CRYPTO'
@@ -63,6 +65,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
             currency: (initialData.currency || "USD") as "USD" | "HKD" | "CNY" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "SGD",
             symbol: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.symbol : "",
             quantity: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.quantity : 0,
+            averageBuyPrice: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? (initialData.averageBuyPrice || 0) : 0,
             apy: initialData.type === 'BANK' ? (initialData.apy || 0) : 0
         } : {
             name: "",
@@ -70,9 +73,12 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
             currency: "USD" as "USD" | "HKD" | "CNY" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "SGD",
             symbol: "",
             quantity: 0,
+            averageBuyPrice: 0,
             apy: 0
         }
     })
+
+    const watchedCurrency = form.watch("currency")
 
     // Reset form when initialData changes or modal opens
     useEffect(() => {
@@ -85,6 +91,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                     currency: initialData.type === 'BANK' ? initialData.currency : "USD",
                     symbol: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.symbol : "",
                     quantity: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.quantity : 0,
+                    averageBuyPrice: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? (initialData.averageBuyPrice || 0) : 0,
                     apy: initialData.type === 'BANK' ? initialData.apy : 0
                 })
             } else {
@@ -167,6 +174,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                 currency: "USD",
                 symbol: "",
                 quantity: 0,
+                averageBuyPrice: 0,
                 apy: 0
             })
         }
@@ -356,6 +364,17 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                                 )}
                                             />
                                         )}
+                                        <FormField
+                                            control={form.control}
+                                            name="averageBuyPrice"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Average Buy Price ({watchedCurrency || "USD"}) <span className="text-xs text-muted-foreground font-normal">(Optional)</span></FormLabel>
+                                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
                                         <FormField
                                             control={form.control}
                                             name="quantity"

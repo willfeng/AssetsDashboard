@@ -87,6 +87,7 @@ export async function POST(request: Request) {
                 apy: body.apy,
                 symbol: body.symbol,
                 quantity: body.quantity,
+                averageBuyPrice: body.averageBuyPrice,
             }
         });
 
@@ -193,6 +194,7 @@ export async function PUT(request: Request) {
                 currency: updates.currency,
                 apy: updates.apy,
                 symbol: updates.symbol,
+                averageBuyPrice: updates.averageBuyPrice,
             }
         });
 

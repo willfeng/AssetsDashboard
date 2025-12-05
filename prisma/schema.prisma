@@ -38,6 +38,7 @@ model Asset {
   // Stock/Crypto specific
   symbol    String?
   quantity  Float?
+  averageBuyPrice Float? // Average Buy Price in Asset Currency
   
   order     Int      @default(0)
   
