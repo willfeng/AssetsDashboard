@@ -13,6 +13,64 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const range = searchParams.get("range") || "1Y";
 
+        // Self-Healing: Check for Ghost Data (No assets but history exists)
+        const assetCount = await prisma.asset.count({
+            where: { userId: user.id }
+        });
+
+        if (assetCount === 0) {
+            // Check latest history
+            const latestHistory = await prisma.history.findFirst({
+                where: { userId: user.id },
+                orderBy: { date: 'desc' }
+            });
+
+            if (latestHistory && latestHistory.value > 0) {
+                console.log(`[Metrics] Ghost data detected for ${user.id}. Assets: 0, History: ${latestHistory.value}. Triggering repair...`);
+                // Update history to 0
+                await prisma.history.create({
+                    data: {
+                        userId: user.id,
+                        date: new Date().toISOString().split('T')[0],
+                        value: 0
+                    }
+                }).catch(async () => {
+                    // If duplicate date (upsert needed), update
+                    const today = new Date().toISOString().split('T')[0];
+                    await prisma.history.update({
+                        where: { userId_date: { userId: user.id, date: today } },
+                        data: { value: 0 }
+                    });
+                });
+
+                // Return empty metrics immediately
+                return NextResponse.json({
+                    totalReturn: { value: 0, absolute: 0 },
+                    maxDrawdown: { value: 0, date: null },
+                    sharpeRatio: 0,
+                    volatility: 0,
+                    bestDay: { date: null, value: 0, percent: 0 },
+                    worstDay: { date: null, value: 0, percent: 0 },
+                    longestStreak: { wins: 0, losses: 0 },
+                    dashboard: { monthHigh: 0, monthLow: 0, ytd: 0, today: { value: 0, percent: 0 } },
+                    sparkline: []
+                });
+            } else if (!latestHistory) {
+                // Truly new user
+                return NextResponse.json({
+                    totalReturn: { value: 0, absolute: 0 },
+                    maxDrawdown: { value: 0, date: null },
+                    sharpeRatio: 0,
+                    volatility: 0,
+                    bestDay: { date: null, value: 0, percent: 0 },
+                    worstDay: { date: null, value: 0, percent: 0 },
+                    longestStreak: { wins: 0, losses: 0 },
+                    dashboard: { monthHigh: 0, monthLow: 0, ytd: 0, today: { value: 0, percent: 0 } },
+                    sparkline: []
+                });
+            }
+        }
+
         // Calculate date range
         const endDate = new Date();
         const startDate = new Date();
