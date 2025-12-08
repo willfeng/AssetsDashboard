@@ -24,6 +24,10 @@ import { Button } from "@/components/ui/button";
 import { CurrencyService } from "@/lib/currency";
 import { AssetTrendChart } from "@/components/AssetTrendChart";
 import { useAuth } from "@clerk/nextjs";
+import confetti from "canvas-confetti"; // Magic Moment
+
+import { WelcomeOverlay } from "@/components/onboarding/WelcomeOverlay";
+import { SmartEmptyDashboard } from "@/components/onboarding/SmartEmptyDashboard";
 
 // Dynamic import for charts to avoid SSR issues
 const DashboardCharts = dynamic(() => import("@/components/DashboardCharts"), { ssr: false });
@@ -46,6 +50,10 @@ export function DashboardContent() {
         today: { value: 0, percent: 0 }
     });
 
+    // Onboarding State
+    const [onboardingStatus, setOnboardingStatus] = useState<string | null>(null);
+    const [isTransitioning, setIsTransitioning] = useState(false); // Magic Moment State
+
     // Edit/Delete State
     const [editingAsset, setEditingAsset] = useState<Asset | undefined>(undefined);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -53,20 +61,50 @@ export function DashboardContent() {
 
     // Add Asset State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [addAssetType, setAddAssetType] = useState<'BANK' | 'STOCK' | 'CRYPTO'>('BANK');
+
+    // Connection Modal State (for triggers)
+    const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
 
     const [isSyncing, setIsSyncing] = useState(false);
 
     // --- Data Fetching ---
 
+    const fetchUserStatus = useCallback(async () => {
+        try {
+            const res = await fetch('/api/user/onboarding', { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                setOnboardingStatus(data.status);
+            }
+        } catch (error) {
+            console.error("Failed to fetch onboarding status:", error);
+        }
+    }, []);
+
+    const updateOnboardingStatus = async (status: string) => {
+        try {
+            await fetch('/api/user/onboarding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            setOnboardingStatus(status);
+        } catch (error) {
+            console.error("Failed to update status:", error);
+        }
+    };
+
     const fetchAssets = useCallback(async () => {
         try {
-            const res = await fetch('/api/assets');
+            const res = await fetch('/api/assets', { cache: 'no-store' });
             if (!res.ok) {
                 if (res.status === 401) return;
                 throw new Error(`API error: ${res.status}`);
             }
             const data = await res.json();
-            setAssets(Array.isArray(data) ? data : []);
+            const assetList = Array.isArray(data) ? data : [];
+            setAssets(assetList);
         } catch (error) {
             console.error("Failed to fetch assets:", error);
             setAssets([]);
@@ -75,7 +113,7 @@ export function DashboardContent() {
 
     const fetchHistory = useCallback(async () => {
         try {
-            const res = await fetch(`/api/history?range=${timeRange}`);
+            const res = await fetch(`/api/history?range=${timeRange}`, { cache: 'no-store' });
             if (!res.ok) return;
 
             const data = await res.json();
@@ -91,7 +129,7 @@ export function DashboardContent() {
 
     const fetchMetrics = useCallback(async () => {
         try {
-            const res = await fetch('/api/analytics/metrics?range=1Y');
+            const res = await fetch('/api/analytics/metrics?range=1Y', { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
                 if (data.dashboard) {
@@ -122,7 +160,7 @@ export function DashboardContent() {
     // Auto-Sync Logic
     const checkAutoSync = useCallback(async () => {
         try {
-            const res = await fetch('/api/integrations');
+            const res = await fetch('/api/integrations', { cache: 'no-store' });
             if (!res.ok) return;
 
             const integrations = await res.json();
@@ -170,6 +208,8 @@ export function DashboardContent() {
         const init = async () => {
             setLoading(true);
             await CurrencyService.fetchRates();
+            // Fetch user status alongside data
+            await fetchUserStatus();
             await Promise.all([fetchAssets(), fetchHistory(), fetchMetrics()]);
             setLoading(false);
             checkAutoSync();
@@ -178,7 +218,56 @@ export function DashboardContent() {
 
         const interval = setInterval(refreshPrices, 5 * 60 * 1000);
         return () => clearInterval(interval);
-    }, [isSignedIn, userId, fetchAssets, fetchHistory, fetchMetrics, refreshPrices, checkAutoSync]);
+    }, [isSignedIn, userId, fetchAssets, fetchHistory, fetchMetrics, refreshPrices, checkAutoSync, fetchUserStatus]);
+
+    // Effect to auto-graduate user from onboarding if they have assets (Magic Moment Logic)
+    useEffect(() => {
+        if (assets.length > 0 && onboardingStatus !== 'COMPLETED' && onboardingStatus !== null) {
+            // Trigger Magic Moment Celebration
+            setIsTransitioning(true);
+
+            // Fire Confetti from bottom corners
+            const duration = 3000;
+            const end = Date.now() + duration;
+
+            const frame = () => {
+                confetti({
+                    particleCount: 2,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#2563eb', '#9333ea', '#10b981'] // Brand colors
+                });
+                confetti({
+                    particleCount: 2,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#2563eb', '#9333ea', '#10b981']
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            };
+            frame();
+
+            // Big burst in the middle
+            setTimeout(() => {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }, 500);
+
+            // Wait for animation to finish before showing real dashboard
+            setTimeout(() => {
+                updateOnboardingStatus('COMPLETED');
+                setIsTransitioning(false);
+            }, 3500);
+        }
+    }, [assets.length, onboardingStatus]);
 
     // --- Handlers ---
 
@@ -221,6 +310,10 @@ export function DashboardContent() {
         }
     };
 
+    const handleWelcomeComplete = () => {
+        updateOnboardingStatus('SEEN_WELCOME');
+    };
+
     // --- Calculations ---
 
     const totalBalance = assets.reduce((sum, asset) => {
@@ -238,6 +331,14 @@ export function DashboardContent() {
 
     const pieData = Object.entries(allocation).map(([name, value]) => ({ name, value }));
 
+    // --- Render Logic ---
+
+    // 1. Show Welcome Overlay if NEW
+    if (onboardingStatus === 'NEW') {
+        return <WelcomeOverlay onComplete={handleWelcomeComplete} />;
+    }
+
+    // 2. Main Dashboard Layout
     return (
         <div className="p-8 space-y-8" id="dashboard">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -257,8 +358,12 @@ export function DashboardContent() {
                         )}
                     </div>
                 </div>
+
+                {/* Global Controls */}
                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <ConnectionManagerModal
+                        open={isConnectionModalOpen}
+                        onOpenChange={setIsConnectionModalOpen}
                         onChanged={() => {
                             fetchAssets();
                             fetchHistory();
@@ -267,11 +372,24 @@ export function DashboardContent() {
                     <AddAssetModal
                         open={isAddModalOpen}
                         onOpenChange={setIsAddModalOpen}
-                        trigger={<Button variant="outline" className="gap-2 w-full md:w-auto"><Plus className="h-4 w-4" />Add Asset</Button>}
+                        defaultType={addAssetType}
+                        trigger={
+                            <Button
+                                variant="outline"
+                                className="gap-2 w-full md:w-auto"
+                                onClick={() => {
+                                    setAddAssetType('BANK'); // Default
+                                    setIsAddModalOpen(true);
+                                }}
+                            >
+                                <Plus className="h-4 w-4" />Add Asset
+                            </Button>
+                        }
                         onAssetAdded={() => {
                             fetchAssets();
                             fetchHistory();
                             setIsAddModalOpen(false);
+                            // Magic Moment transition handled by effect
                         }}
                     />
                     <OnboardingModal />
@@ -307,77 +425,113 @@ export function DashboardContent() {
                 </AlertDialog>
             </div>
 
-            {/* Top Row: Total Net Worth (Full Width) */}
-            <Card className="w-full">
-                <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        {/* Left: Total Balance */}
-                        <div className="space-y-2">
-                            <h2 className="text-sm font-medium text-muted-foreground">Total Net Worth (USD)</h2>
-                            <div className="text-4xl font-bold">${totalBalance.toLocaleString()}</div>
-                            <div className={cn("flex items-center text-sm", dashboardMetrics.today.value >= 0 ? "text-green-500" : "text-red-500")}>
-                                <span className="font-medium">
-                                    {dashboardMetrics.today.value > 0 ? "+" : ""}
-                                    {dashboardMetrics.today.percent.toFixed(1)}% ({dashboardMetrics.today.value > 0 ? "+" : ""}{CurrencyService.format(dashboardMetrics.today.value, "USD")})
-                                </span>
-                                <span className="ml-2 text-muted-foreground">Today</span>
-                            </div>
-                        </div>
+            {/* CONTENT AREA SWITCH */}
+            {(assets.length === 0 || isTransitioning) && !loading ? (
+                <SmartEmptyDashboard
+                    onConnectBank={() => setIsConnectionModalOpen(true)}
+                    onAddStock={() => {
+                        setAddAssetType('STOCK');
+                        setIsAddModalOpen(true);
+                    }}
+                    onAddCrypto={() => {
+                        setAddAssetType('CRYPTO');
+                        setIsAddModalOpen(true);
+                    }}
+                />
+            ) : (
+                <>
+                    {/* Top Row: Total Net Worth (Full Width) */}
+                    <Card className="w-full">
+                        <CardContent className="p-6">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                {/* Left: Total Balance */}
+                                <div className="space-y-2">
+                                    <h2 className="text-sm font-medium text-muted-foreground">Total Net Worth (USD)</h2>
+                                    <div className="text-4xl font-bold">${totalBalance.toLocaleString()}</div>
+                                    <div className={cn("flex items-center text-sm", dashboardMetrics.today.value >= 0 ? "text-green-500" : "text-red-500")}>
+                                        <span className="font-medium">
+                                            {dashboardMetrics.today.value > 0 ? "+" : ""}
+                                            {dashboardMetrics.today.percent.toFixed(1)}% ({dashboardMetrics.today.value > 0 ? "+" : ""}{CurrencyService.format(dashboardMetrics.today.value, "USD")})
+                                        </span>
+                                        <span className="ml-2 text-muted-foreground">Today</span>
+                                    </div>
+                                </div>
 
-                        {/* Middle: Key Metrics (Responsive) */}
-                        <div className="grid grid-cols-3 gap-4 md:gap-8 border-t md:border-t-0 md:border-l md:border-r pt-4 md:pt-0 md:px-8 mt-4 md:mt-0 w-full md:w-auto">
-                            <div className="space-y-1 text-center md:text-left">
-                                <p className="text-xs text-muted-foreground">Month High</p>
-                                <p className="font-semibold text-sm md:text-base">{CurrencyService.format(dashboardMetrics.monthHigh, "USD")}</p>
-                            </div>
-                            <div className="space-y-1 text-center md:text-left">
-                                <p className="text-xs text-muted-foreground">Month Low</p>
-                                <p className="font-semibold text-sm md:text-base">{CurrencyService.format(dashboardMetrics.monthLow, "USD")}</p>
-                            </div>
-                            <div className="space-y-1 text-center md:text-left">
-                                <p className="text-xs text-muted-foreground">YTD</p>
-                                <p className={cn("font-semibold text-sm md:text-base", dashboardMetrics.ytd >= 0 ? "text-green-500" : "text-red-500")}>
-                                    {dashboardMetrics.ytd > 0 ? "+" : ""}{dashboardMetrics.ytd.toFixed(1)}%
-                                </p>
-                            </div>
-                        </div>
+                                {/* Middle: Key Metrics (Responsive) */}
+                                <div className="grid grid-cols-3 gap-4 md:gap-8 border-t md:border-t-0 md:border-l md:border-r pt-4 md:pt-0 md:px-8 mt-4 md:mt-0 w-full md:w-auto">
+                                    <div className="space-y-1 text-center md:text-left">
+                                        <p className="text-xs text-muted-foreground">Month High</p>
+                                        <p className="font-semibold text-sm md:text-base">{CurrencyService.format(dashboardMetrics.monthHigh, "USD")}</p>
+                                    </div>
+                                    <div className="space-y-1 text-center md:text-left">
+                                        <p className="text-xs text-muted-foreground">Month Low</p>
+                                        <p className="font-semibold text-sm md:text-base">{CurrencyService.format(dashboardMetrics.monthLow, "USD")}</p>
+                                    </div>
+                                    <div className="space-y-1 text-center md:text-left">
+                                        <p className="text-xs text-muted-foreground">YTD</p>
+                                        <p className={cn("font-semibold text-sm md:text-base", dashboardMetrics.ytd >= 0 ? "text-green-500" : "text-red-500")}>
+                                            {dashboardMetrics.ytd > 0 ? "+" : ""}{dashboardMetrics.ytd.toFixed(1)}%
+                                        </p>
+                                    </div>
+                                </div>
 
-                        {/* Right: Return Overview */}
-                        <div className="flex flex-col gap-4 w-full md:w-[400px] mt-4 md:mt-0">
-                            <div className="flex items-center justify-between md:justify-end">
-                                <span className="text-sm font-medium md:hidden">Range</span>
-                                <div className="flex gap-1 bg-muted/50 p-1 rounded-lg overflow-x-auto">
-                                    {['1W', '1M', '1Y', '3Y', '5Y'].map((period) => (
-                                        <button
-                                            key={period}
-                                            onClick={() => setTimeRange(period)}
-                                            className={cn(
-                                                "px-3 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap",
-                                                timeRange === period
-                                                    ? "bg-background text-foreground shadow-sm"
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                                            )}
-                                        >
-                                            {period}
-                                        </button>
-                                    ))}
+                                {/* Right: Return Overview */}
+                                <div className="flex flex-col gap-4 w-full md:w-[400px] mt-4 md:mt-0">
+                                    <div className="flex items-center justify-between md:justify-end">
+                                        <span className="text-sm font-medium md:hidden">Range</span>
+                                        <div className="flex gap-1 bg-muted/50 p-1 rounded-lg overflow-x-auto">
+                                            {['1W', '1M', '1Y', '3Y', '5Y'].map((period) => (
+                                                <button
+                                                    key={period}
+                                                    onClick={() => setTimeRange(period)}
+                                                    className={cn(
+                                                        "px-3 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap",
+                                                        timeRange === period
+                                                            ? "bg-background text-foreground shadow-sm"
+                                                            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                                                    )}
+                                                >
+                                                    {period}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end justify-center h-full pb-2">
+                                        <div className={cn("text-4xl md:text-5xl font-bold tracking-tight", returnPct >= 0 ? "text-green-500" : "text-red-500")}>
+                                            {returnPct > 0 ? "+" : ""}{returnPct}%
+                                        </div>
+                                        <div className="text-sm font-medium text-muted-foreground mt-1">
+                                            {returnVal > 0 ? "+" : ""}${returnVal.toLocaleString()}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex flex-col items-end justify-center h-full pb-2">
-                                <div className={cn("text-4xl md:text-5xl font-bold tracking-tight", returnPct >= 0 ? "text-green-500" : "text-red-500")}>
-                                    {returnPct > 0 ? "+" : ""}{returnPct}%
-                                </div>
-                                <div className="text-sm font-medium text-muted-foreground mt-1">
-                                    {returnVal > 0 ? "+" : ""}${returnVal.toLocaleString()}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Mobile Trend Chart */}
-                    <div className="mt-6 block md:hidden h-[200px] w-full -ml-2">
-                        <AssetTrendChart
-                            data={(() => {
+                            {/* Mobile Trend Chart */}
+                            <div className="mt-6 block md:hidden h-[200px] w-full -ml-2">
+                                <AssetTrendChart
+                                    data={(() => {
+                                        if (historyData.length === 0) return [];
+                                        const today = new Date().toISOString().split('T')[0];
+                                        const lastPoint = historyData[historyData.length - 1];
+                                        const newData = [...historyData];
+                                        if (lastPoint.date === today) {
+                                            newData[newData.length - 1] = { ...lastPoint, value: totalBalance };
+                                        }
+                                        return newData;
+                                    })()}
+                                    isLoading={loading}
+                                    height="100%"
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Middle Row: Charts */}
+                    <div id="analytics" className="space-y-8">
+                        <DashboardCharts
+                            pieData={pieData}
+                            historyData={(() => {
                                 if (historyData.length === 0) return [];
                                 const today = new Date().toISOString().split('T')[0];
                                 const lastPoint = historyData[historyData.length - 1];
@@ -388,39 +542,22 @@ export function DashboardContent() {
                                 return newData;
                             })()}
                             isLoading={loading}
-                            height="100%"
+                            assets={assets}
+                            hideTrendOnMobile={true}
                         />
                     </div>
-                </CardContent>
-            </Card>
 
-            {/* Middle Row: Charts */}
-            <div id="analytics" className="space-y-8">
-                <DashboardCharts
-                    pieData={pieData}
-                    historyData={(() => {
-                        if (historyData.length === 0) return [];
-                        const today = new Date().toISOString().split('T')[0];
-                        const lastPoint = historyData[historyData.length - 1];
-                        const newData = [...historyData];
-                        if (lastPoint.date === today) {
-                            newData[newData.length - 1] = { ...lastPoint, value: totalBalance };
-                        }
-                        return newData;
-                    })()}
-                    isLoading={loading}
-                    assets={assets}
-                    hideTrendOnMobile={true}
-                />
-            </div>
-
-            {/* Bottom Row: Asset Lists (3 Columns) */}
-            <AssetList
-                assets={assets}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
-                onReorder={handleReorder}
-            />
+                    {/* Bottom Row: Asset Lists (3 Columns) */}
+                    <AssetList
+                        assets={assets}
+                        onEdit={handleEdit}
+                        onDelete={handleDeleteClick}
+                        onReorder={handleReorder}
+                    />
+                </>
+            )}
         </div>
     );
 }
+
+// Fixed DashboardContent to correctly handle imports and structure

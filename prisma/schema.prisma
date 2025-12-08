@@ -18,6 +18,14 @@ model User {
   assets    Asset[]
   history   History[]
   integrations Integration[]
+
+  onboardingStatus OnboardingStatus @default(NEW)
+}
+
+enum OnboardingStatus {
+  NEW
+  SEEN_WELCOME
+  COMPLETED
 }
 
 model Asset {

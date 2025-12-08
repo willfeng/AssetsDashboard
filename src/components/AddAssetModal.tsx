@@ -42,15 +42,16 @@ interface AssetModalProps {
     trigger?: React.ReactNode
     open?: boolean
     onOpenChange?: (open: boolean) => void
+    defaultType?: AssetType
 }
 
-export function AddAssetModal({ onAssetAdded, initialData, trigger, open: controlledOpen, onOpenChange }: AssetModalProps) {
+export function AddAssetModal({ onAssetAdded, initialData, trigger, open: controlledOpen, onOpenChange, defaultType }: AssetModalProps) {
     const [internalOpen, setInternalOpen] = useState(false)
     const isControlled = controlledOpen !== undefined
     const open = isControlled ? controlledOpen : internalOpen
     const setOpen = isControlled ? onOpenChange! : setInternalOpen
 
-    const [activeTab, setActiveTab] = useState<AssetType>(initialData?.type || "BANK")
+    const [activeTab, setActiveTab] = useState<AssetType>(initialData?.type || defaultType || "BANK")
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     // Form setup
@@ -95,12 +96,12 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                     apy: initialData.type === 'BANK' ? initialData.apy : 0
                 })
             } else {
-                // Only reset to defaults if we're not editing (and maybe switching tabs)
-                // But if we just opened "Add", we want clean state.
-                // If we switch tabs in "Add" mode, we might want to keep some fields? No, usually clear.
+                if (defaultType) {
+                    setActiveTab(defaultType);
+                }
             }
         }
-    }, [open, initialData, form])
+    }, [open, initialData, form, defaultType])
 
     const onSubmit = async (data: any) => {
         console.log("Submitting form data:", data)

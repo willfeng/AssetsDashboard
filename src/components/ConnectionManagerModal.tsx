@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,9 @@ interface Integration {
 }
 
 interface ConnectionManagerModalProps {
-    onChanged: () => void; // Triggered when connections change or sync happens
+    onChanged: () => void;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 const PROVIDERS = [
@@ -44,14 +45,18 @@ const PROVIDERS = [
     { id: "WALLET_TRON", name: "Tron Wallet", type: "WALLET", icon: "T" },
 ];
 
-export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProps) {
-    const [open, setOpen] = useState(false);
+export function ConnectionManagerModal({ onChanged, open: controlledOpen, onOpenChange: setControlledOpen }: ConnectionManagerModalProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
+
+    const isControlled = controlledOpen !== undefined;
+    const open = isControlled ? controlledOpen : internalOpen;
+    const setOpen = isControlled ? setControlledOpen : setInternalOpen;
+
     const [activeTab, setActiveTab] = useState("list");
     const [integrations, setIntegrations] = useState<Integration[]>([]);
     const [loading, setLoading] = useState(false);
     const [isPlaidOpen, setIsPlaidOpen] = useState(false); // New state to track Plaid status
 
-    // ... existing state ...
     const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
     const [formData, setFormData] = useState({ name: "", apiKey: "", apiSecret: "", passphrase: "" });
     const [submitting, setSubmitting] = useState(false);
@@ -60,7 +65,6 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
     const [deleting, setDeleting] = useState(false);
     const [syncingId, setSyncingId] = useState<string | null>(null);
 
-    // ... existing fetchIntegrations ...
     const fetchIntegrations = async (showLoading = true) => {
         if (showLoading) setLoading(true);
         try {
@@ -84,8 +88,6 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
             setIsPlaidOpen(false); // Reset on open
         }
     }, [open]);
-
-    // ... existing methods resetForm, handleConnect, confirmDelete, handleSync, getProviderInfo ...
 
     const resetForm = () => {
         setSelectedProvider(null);
