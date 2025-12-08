@@ -40,9 +40,11 @@ export default function DashboardCharts({ pieData, historyData, isLoading, asset
 
     // Custom Colors
     const CATEGORY_COLORS = {
-        "Cash": "#10b981",   // Emerald-500
-        "Stock": "#3b82f6",  // Blue-500
-        "Crypto": "#f59e0b", // Amber-500
+        "Cash": "#10b981",      // Emerald-500
+        "Stock": "#3b82f6",     // Blue-500
+        "Crypto": "#f59e0b",    // Amber-500
+        "Real Estate": "#8b5cf6", // Violet-500
+        "Custom": "#ec4899",    // Pink-500
     };
 
     // Calculate drill-down data
@@ -51,12 +53,19 @@ export default function DashboardCharts({ pieData, historyData, isLoading, asset
 
         return assets
             .filter(asset => {
-                const type = asset.type === "BANK" ? "Cash" : asset.type === "STOCK" ? "Stock" : "Crypto";
+                let type = "Other";
+                switch (asset.type) {
+                    case "BANK": type = "Cash"; break;
+                    case "STOCK": type = "Stock"; break;
+                    case "CRYPTO": type = "Crypto"; break;
+                    case "REAL_ESTATE": type = "Real Estate"; break;
+                    case "CUSTOM": type = "Custom"; break;
+                }
                 return type === drillDownCategory;
             })
             .map(asset => {
                 let value = 0;
-                if (asset.type === "BANK") {
+                if (asset.type === "BANK" || asset.type === "REAL_ESTATE" || asset.type === "CUSTOM") {
                     value = CurrencyService.convertToUSD(asset.balance, asset.currency || "USD");
                 } else {
                     value = asset.totalValue || 0;

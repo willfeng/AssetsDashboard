@@ -211,6 +211,52 @@ export async function GET(req: NextRequest) {
             }
         }
 
+        // 8. Derived Dashboard Metrics (from history array to ensure consistency)
+
+        // Month High/Low (Last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysStr = thirtyDaysAgo.toISOString().split('T')[0];
+        const monthHistory = history.filter(h => h.date >= thirtyDaysStr);
+
+        const monthHigh = monthHistory.length > 0 ? Math.max(...monthHistory.map(h => h.value)) : 0;
+        const monthLow = monthHistory.length > 0 ? Math.min(...monthHistory.map(h => h.value)) : 0;
+
+        // Today's Change
+        let todayMetric = { value: 0, percent: 0 };
+        if (history.length >= 2) {
+            const last = history[history.length - 1];
+            const prev = history[history.length - 2];
+            const change = last.value - prev.value;
+            const pct = prev.value !== 0 ? (change / prev.value) * 100 : 0;
+            todayMetric = { value: change, percent: pct };
+        } else if (history.length === 1 && history[0].value > 0) {
+            // New user, single record = 100% gain? Or treated as 0 change?
+            // Usually treated as 0 change from "nothing".
+            todayMetric = { value: 0, percent: 0 };
+        }
+
+        // YTD
+        const currentYear = new Date().getFullYear();
+        const startOfYear = `${currentYear}-01-01`;
+        // Since main history query might be filtered by range, we need to ensure we have YTD data.
+        // If range is 1M, we don't have Jan 1. 
+        // So we DO need a separate query for YTD Start if it's not in 'history'.
+        // BUT to avoid inconsistency, we should trust the 'Total Return' logic for long ranges, 
+        // or just fetch YTD start separately but ensure it's not "future".
+
+        // Re-fetching ONLY YTD Start to be safe, but calculating logic consistently.
+        const ytdStartRecord = await prisma.history.findFirst({
+            where: { userId: user.id, date: { gte: startOfYear } },
+            orderBy: { date: 'asc' }
+        });
+
+        let ytd = 0;
+        const currentVal = history[history.length - 1].value;
+        if (ytdStartRecord && ytdStartRecord.value > 0) {
+            ytd = ((currentVal - ytdStartRecord.value) / ytdStartRecord.value) * 100;
+        }
+
         return NextResponse.json({
             totalReturn: {
                 value: parseFloat(totalReturnValue.toFixed(2)),
@@ -237,10 +283,10 @@ export async function GET(req: NextRequest) {
                 losses: maxLossStreak,
             },
             dashboard: {
-                monthHigh: await calculateMonthHigh(user.id),
-                monthLow: await calculateMonthLow(user.id),
-                ytd: await calculateYTD(user.id),
-                today: await calculateToday(user.id),
+                monthHigh,
+                monthLow,
+                ytd,
+                today: todayMetric,
             },
             sparkline: history.slice(-30).map(h => ({ value: h.value })),
         });
@@ -251,86 +297,4 @@ export async function GET(req: NextRequest) {
             { status: 500 }
         );
     }
-}
-
-async function calculateMonthHigh(userId: string) {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - 30);
-
-    const history = await prisma.history.findMany({
-        where: {
-            userId,
-            date: {
-                gte: startDate.toISOString().split('T')[0],
-            },
-        },
-        select: { value: true },
-    });
-
-    if (history.length === 0) return 0;
-    return Math.max(...history.map(h => h.value));
-}
-
-async function calculateMonthLow(userId: string) {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - 30);
-
-    const history = await prisma.history.findMany({
-        where: {
-            userId,
-            date: {
-                gte: startDate.toISOString().split('T')[0],
-            },
-        },
-        select: { value: true },
-    });
-
-    if (history.length === 0) return 0;
-    return Math.min(...history.map(h => h.value));
-}
-
-async function calculateYTD(userId: string) {
-    const currentYear = new Date().getFullYear();
-    const startDate = `${currentYear}-01-01`;
-
-    // Get first record of the year
-    const startRecord = await prisma.history.findFirst({
-        where: {
-            userId,
-            date: { gte: startDate }
-        },
-        orderBy: { date: 'asc' }
-    });
-
-    // Get latest record
-    const endRecord = await prisma.history.findFirst({
-        where: { userId },
-        orderBy: { date: 'desc' }
-    });
-
-    if (!startRecord || !endRecord || startRecord.value === 0) return 0;
-
-    return ((endRecord.value - startRecord.value) / startRecord.value) * 100;
-}
-
-async function calculateToday(userId: string) {
-    const history = await prisma.history.findMany({
-        where: { userId },
-        orderBy: { date: 'desc' },
-        take: 2
-    });
-
-    if (history.length < 2) {
-        return { value: 0, percent: 0 };
-    }
-
-    const today = history[0];
-    const yesterday = history[1];
-
-    const change = today.value - yesterday.value;
-    const percent = yesterday.value !== 0 ? (change / yesterday.value) * 100 : 0;
-
-    return { value: change, percent };
 }

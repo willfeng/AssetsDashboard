@@ -1,4 +1,4 @@
-export type AssetType = 'BANK' | 'STOCK' | 'CRYPTO';
+export type AssetType = 'BANK' | 'STOCK' | 'CRYPTO' | 'REAL_ESTATE' | 'CUSTOM';
 
 export interface BankAccount {
     id: string;
@@ -41,7 +41,34 @@ export interface CryptoAsset {
     type: 'CRYPTO';
 }
 
-export type Asset = BankAccount | StockAsset | CryptoAsset;
+export interface RealEstateAsset {
+    id: string;
+    name: string; // Address or Name
+    balance: number; // Current Value
+    currency: string;
+    averageBuyPrice?: number; // Purchase Price
+    integrationId?: string;
+    order?: number;
+    type: 'REAL_ESTATE';
+    // Mapped fields for consistent interface
+    totalValue?: number; // = balance
+    change24h?: number; // Calculated field if possible, else 0
+}
+
+export interface CustomAsset {
+    id: string;
+    name: string;
+    balance: number; // Current Value
+    currency: string;
+    averageBuyPrice?: number; // Purchase Price
+    integrationId?: string; // Likely null
+    order?: number;
+    type: 'CUSTOM';
+    totalValue?: number; // = balance
+    change24h?: number;
+}
+
+export type Asset = BankAccount | StockAsset | CryptoAsset | RealEstateAsset | CustomAsset;
 
 export interface HistoricalDataPoint {
     date: string;

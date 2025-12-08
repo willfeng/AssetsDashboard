@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Landmark, TrendingUp, Bitcoin, CloudDownload, UserCog } from "lucide-react";
+import { Pencil, Trash2, Landmark, TrendingUp, Bitcoin, CloudDownload, UserCog, Home, Gem } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Asset } from "@/types";
@@ -92,11 +92,13 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
     const bankAssets = assets.filter((a) => a.type === "BANK");
     const stockAssets = assets.filter((a) => a.type === "STOCK");
     const cryptoAssets = assets.filter((a) => a.type === "CRYPTO");
+    const realEstateAssets = assets.filter((a) => a.type === "REAL_ESTATE");
+    const customAssets = assets.filter((a) => a.type === "CUSTOM");
 
     return (
-        <div className="grid gap-4 md:grid-cols-3" id="assets">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" id="assets">
             {/* Bank Accounts */}
-            <Card className="flex flex-col">
+            <Card className="flex flex-col min-w-0">
                 <CardHeader>
                     <CardTitle>Bank Accounts</CardTitle>
                 </CardHeader>
@@ -144,7 +146,7 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
             </Card>
 
             {/* Stocks */}
-            <Card className="flex flex-col">
+            <Card className="flex flex-col min-w-0">
                 <CardHeader>
                     <CardTitle>Stocks</CardTitle>
                 </CardHeader>
@@ -208,7 +210,7 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
             </Card>
 
             {/* Crypto */}
-            <Card className="flex flex-col">
+            <Card className="flex flex-col min-w-0">
                 <CardHeader>
                     <CardTitle>Crypto</CardTitle>
                 </CardHeader>
@@ -277,6 +279,127 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                     )}
                 </CardContent>
             </Card >
+
+
+            {/* Real Estate */}
+            <Card className="flex flex-col min-w-0">
+                <CardHeader>
+                    <CardTitle>Real Estate</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1">
+                    {realEstateAssets.length > 0 ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={realEstateAssets.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-5">
+                                    {realEstateAssets.map((asset) => (
+                                        <SortableAssetItem key={asset.id} asset={asset}>
+                                            <div className="group flex items-center justify-between gap-4 py-2 px-2 hover:bg-muted/50 rounded-lg transition-colors">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <Home className="h-3 w-3 text-muted-foreground/70" />
+                                                        <p className="text-sm font-medium leading-none">{asset.name}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <div className="text-right">
+                                                        <div className="font-medium">
+                                                            {CurrencyService.format(asset.balance || 0, asset.currency || "USD")}
+                                                        </div>
+                                                        {asset.currency && asset.currency !== "USD" && (
+                                                            <div className="text-xs text-muted-foreground">
+                                                                ≈ {CurrencyService.format(CurrencyService.convertToUSD(asset.balance || 0, asset.currency), "USD")}
+                                                            </div>
+                                                        )}
+                                                        {asset.averageBuyPrice && asset.averageBuyPrice > 0 && (
+                                                            <div className="text-[10px] mt-0.5 flex justify-end gap-1">
+                                                                <span className="text-muted-foreground">Ret:</span>
+                                                                <span className={cn(
+                                                                    ((asset.balance || 0) - asset.averageBuyPrice) >= 0 ? "text-green-500" : "text-red-500"
+                                                                )}>
+                                                                    {(((asset.balance || 0) - asset.averageBuyPrice) >= 0 ? "+" : "")}
+                                                                    {(((asset.balance || 0) - asset.averageBuyPrice) / asset.averageBuyPrice * 100).toFixed(1)}%
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <AssetActions asset={asset} />
+                                                </div>
+                                            </div>
+                                        </SortableAssetItem>
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <EmptyState
+                            icon={Home}
+                            title="No Properties"
+                            description="Track real estate assets."
+                            className="min-h-[150px] p-4"
+                        />
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Custom Assets */}
+            <Card className="flex flex-col min-w-0">
+                <CardHeader>
+                    <CardTitle>Custom Assets</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1">
+                    {customAssets.length > 0 ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={customAssets.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-5">
+                                    {customAssets.map((asset) => (
+                                        <SortableAssetItem key={asset.id} asset={asset}>
+                                            <div className="group flex items-center justify-between gap-4 py-2 px-2 hover:bg-muted/50 rounded-lg transition-colors">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <Gem className="h-3 w-3 text-muted-foreground/70" />
+                                                        <p className="text-sm font-medium leading-none">{asset.name}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <div className="text-right">
+                                                        <div className="font-medium">
+                                                            {CurrencyService.format(asset.balance || 0, asset.currency || "USD")}
+                                                        </div>
+                                                        {asset.currency && asset.currency !== "USD" && (
+                                                            <div className="text-xs text-muted-foreground">
+                                                                ≈ {CurrencyService.format(CurrencyService.convertToUSD(asset.balance || 0, asset.currency), "USD")}
+                                                            </div>
+                                                        )}
+                                                        {asset.averageBuyPrice && asset.averageBuyPrice > 0 && (
+                                                            <div className="text-[10px] mt-0.5 flex justify-end gap-1">
+                                                                <span className="text-muted-foreground">Ret:</span>
+                                                                <span className={cn(
+                                                                    ((asset.balance || 0) - asset.averageBuyPrice) >= 0 ? "text-green-500" : "text-red-500"
+                                                                )}>
+                                                                    {(((asset.balance || 0) - asset.averageBuyPrice) >= 0 ? "+" : "")}
+                                                                    {(((asset.balance || 0) - asset.averageBuyPrice) / asset.averageBuyPrice * 100).toFixed(1)}%
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <AssetActions asset={asset} />
+                                                </div>
+                                            </div>
+                                        </SortableAssetItem>
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <EmptyState
+                            icon={Gem}
+                            title="No Custom Assets"
+                            description="Track watches, jewelry, art, etc."
+                            className="min-h-[150px] p-4"
+                        />
+                    )}
+                </CardContent>
+            </Card>
         </div >
     );
 }

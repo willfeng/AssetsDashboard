@@ -26,7 +26,7 @@ export async function GET() {
             let totalValue = 0;
             let change24h = 0;
 
-            if (asset.type === 'BANK') {
+            if (asset.type === 'BANK' || asset.type === 'REAL_ESTATE' || asset.type === 'CUSTOM') {
                 totalValue = asset.balance || 0;
             } else if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
                 try {
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
         let totalValue = 0;
         let change24h = 0;
 
-        if (newAsset.type === 'BANK') {
+        if (newAsset.type === 'BANK' || newAsset.type === 'REAL_ESTATE' || newAsset.type === 'CUSTOM') {
             totalValue = newAsset.balance || 0;
         } else {
             if (newAsset.symbol) {

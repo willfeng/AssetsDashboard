@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Home, Gem } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -34,7 +35,21 @@ const cryptoSchema = z.object({
     averageBuyPrice: z.coerce.number().optional(),
 })
 
-type AssetType = 'BANK' | 'STOCK' | 'CRYPTO'
+const realEstateSchema = z.object({
+    name: z.string().min(2, "Address or Name is required"),
+    balance: z.coerce.number().min(0, "Current Value must be positive"), // Current Value
+    averageBuyPrice: z.coerce.number().min(0, "Purchase Price is required"), // Purchase Price
+    currency: z.enum(["USD", "HKD", "CNY", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD"]),
+})
+
+const customSchema = z.object({
+    name: z.string().min(2, "Item Name is required"),
+    balance: z.coerce.number().min(0, "Current Value must be positive"),
+    averageBuyPrice: z.coerce.number().min(0, "Purchase Price is required"),
+    currency: z.enum(["USD", "HKD", "CNY", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD"]),
+})
+
+type AssetType = 'BANK' | 'STOCK' | 'CRYPTO' | 'REAL_ESTATE' | 'CUSTOM'
 
 interface AssetModalProps {
     onAssetAdded: () => void
@@ -58,15 +73,17 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
     const form = useForm({
         resolver: zodResolver(
             activeTab === "BANK" ? bankSchema :
-                activeTab === "STOCK" ? stockSchema : cryptoSchema
+                activeTab === "STOCK" ? stockSchema :
+                    activeTab === "CRYPTO" ? cryptoSchema :
+                        activeTab === "REAL_ESTATE" ? realEstateSchema : customSchema
         ),
         defaultValues: initialData ? {
             name: initialData.name,
-            balance: initialData.type === 'BANK' ? initialData.balance : 0,
+            balance: (initialData.type === 'BANK' || initialData.type === 'REAL_ESTATE' || initialData.type === 'CUSTOM') ? initialData.balance : 0,
             currency: (initialData.currency || "USD") as "USD" | "HKD" | "CNY" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "SGD",
             symbol: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.symbol : "",
             quantity: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? initialData.quantity : 0,
-            averageBuyPrice: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO') ? (initialData.averageBuyPrice || 0) : 0,
+            averageBuyPrice: (initialData.type === 'STOCK' || initialData.type === 'CRYPTO' || initialData.type === 'REAL_ESTATE' || initialData.type === 'CUSTOM') ? (initialData.averageBuyPrice || 0) : 0,
             apy: initialData.type === 'BANK' ? (initialData.apy || 0) : 0
         } : {
             name: "",
@@ -185,7 +202,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            const currentIndex = ["BANK", "STOCK", "CRYPTO"].indexOf(activeTab)
+            const currentIndex = ["BANK", "STOCK", "CRYPTO", "REAL_ESTATE", "CUSTOM"].indexOf(activeTab)
             const currentTab = tabsRef.current[currentIndex]
             if (currentTab) {
                 setTabStyle({
@@ -228,7 +245,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                     width: tabStyle.width,
                                 }}
                             />
-                            {["BANK", "STOCK", "CRYPTO"].map((type, index) => (
+                            {["BANK", "STOCK", "CRYPTO", "REAL_ESTATE", "CUSTOM"].map((type, index) => (
                                 <button
                                     key={type}
                                     ref={(el) => { tabsRef.current[index] = el }}
@@ -239,7 +256,11 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                         activeTab === type ? "text-foreground" : "text-muted-foreground hover:text-foreground/70"
                                     )}
                                 >
-                                    {type === "BANK" ? "Bank" : type === "STOCK" ? "Stock" : "Crypto"}
+                                    {type === "BANK" && "Bank"}
+                                    {type === "STOCK" && "Stock"}
+                                    {type === "CRYPTO" && "Crypto"}
+                                    {type === "REAL_ESTATE" && <span className="flex items-center gap-1"><Home className="w-3 h-3" /> Property</span>}
+                                    {type === "CUSTOM" && <span className="flex items-center gap-1"><Gem className="w-3 h-3" /> Custom</span>}
                                 </button>
                             ))}
                         </div>
@@ -384,6 +405,70 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                         />
                                     </>
                                 )}
+
+                                {(activeTab === "REAL_ESTATE" || activeTab === "CUSTOM") && (
+                                    <>
+                                        <FormField
+                                            control={form.control}
+                                            name="name"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{activeTab === "REAL_ESTATE" ? "Property Name / Address" : "Item Name"}</FormLabel>
+                                                    <FormControl><Input placeholder={activeTab === "REAL_ESTATE" ? "e.g. 123 Main St, New York" : "e.g. Rolex Submariner"} {...field} value={(field.value as any) ?? ''} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField
+                                                control={form.control}
+                                                name="currency"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Currency</FormLabel>
+                                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                            <FormControl><SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger></FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="USD">USD</SelectItem>
+                                                                <SelectItem value="HKD">HKD</SelectItem>
+                                                                <SelectItem value="CNY">CNY</SelectItem>
+                                                                <SelectItem value="EUR">EUR</SelectItem>
+                                                                <SelectItem value="GBP">GBP</SelectItem>
+                                                                <SelectItem value="JPY">JPY</SelectItem>
+                                                                <SelectItem value="AUD">AUD</SelectItem>
+                                                                <SelectItem value="CAD">CAD</SelectItem>
+                                                                <SelectItem value="SGD">SGD</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="averageBuyPrice"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Purchase Price (Cost)</FormLabel>
+                                                        <FormControl><Input type="number" placeholder="0.00" {...field} value={(field.value as any) ?? ''} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                        <FormField
+                                            control={form.control}
+                                            name="balance"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Current Estimated Value</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="0.00" {...field} value={(field.value as any) ?? ''} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </>
+                                )}
                             </div>
 
                             <div className="flex justify-end pt-4">
@@ -395,6 +480,6 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                     </Form>
                 </Tabs>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     )
 }

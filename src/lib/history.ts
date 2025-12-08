@@ -14,7 +14,7 @@ export async function recordDailyHistoryWithTotal(userId: string) {
 
         // 2. Calculate total worth (Parallel Fetching)
         const assetValues = await Promise.all(assets.map(async (asset) => {
-            if (asset.type === 'BANK') {
+            if (asset.type === 'BANK' || asset.type === 'REAL_ESTATE' || asset.type === 'CUSTOM') {
                 return CurrencyService.convertToUSD(asset.balance || 0, asset.currency || "USD");
             } else if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
                 const quantity = asset.quantity || 0;

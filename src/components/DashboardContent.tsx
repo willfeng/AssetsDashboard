@@ -202,6 +202,47 @@ export function DashboardContent() {
 
     // --- Effects ---
 
+    const refreshDashboardData = useCallback(async () => {
+        // 1. Fetch assets first to get latest values
+        const assetsRes = await fetch('/api/assets', { cache: 'no-store' });
+        if (!assetsRes.ok) return;
+        const assetsData = await assetsRes.json();
+        const assetList = Array.isArray(assetsData) ? assetsData : [];
+        setAssets(assetList);
+
+        // 2. Calculate Total Balance (Client-Side Logic to match UI)
+        // Note: We duplicate the calculation here to ensure what we push is what we render
+        // Or we could rely on the render cycle, but that's async.
+        // Better to calculate explicitly.
+
+        let calculatedTotal = 0;
+        // We need CurrencyService to be ready. It is fetched in init.
+
+        for (const asset of assetList) {
+            const rawValue = (asset.type === "BANK" || asset.type === "REAL_ESTATE" || asset.type === "CUSTOM")
+                ? (asset.balance || 0)
+                : (asset.totalValue || 0);
+            calculatedTotal += CurrencyService.convertToUSD(rawValue, asset.currency || "USD");
+        }
+
+        // 3. Push this "Truth" to Backend History
+        try {
+            await fetch('/api/history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: calculatedTotal })
+            });
+        } catch (e) {
+            console.error("Failed to sync history:", e);
+        }
+
+        // 4. Then Fetch History (which will now have the correct point) and Metrics
+        await fetchHistory();
+        await fetchMetrics();
+    }, [fetchHistory, fetchMetrics]);
+
+    // --- Effects ---
+
     useEffect(() => {
         if (!isSignedIn) return;
 
@@ -209,8 +250,11 @@ export function DashboardContent() {
             setLoading(true);
             await CurrencyService.fetchRates();
             // Fetch user status alongside data
+
             await fetchUserStatus();
-            await Promise.all([fetchAssets(), fetchHistory(), fetchMetrics()]);
+
+            // Sequential fetching to ensure history is updated before metrics are calculated
+            await refreshDashboardData();
             setLoading(false);
             checkAutoSync();
         };
@@ -218,7 +262,7 @@ export function DashboardContent() {
 
         const interval = setInterval(refreshPrices, 5 * 60 * 1000);
         return () => clearInterval(interval);
-    }, [isSignedIn, userId, fetchAssets, fetchHistory, fetchMetrics, refreshPrices, checkAutoSync, fetchUserStatus]);
+    }, [isSignedIn, userId, refreshPrices, checkAutoSync, fetchUserStatus, refreshDashboardData]);
 
     // Effect to auto-graduate user from onboarding if they have assets (Magic Moment Logic)
     useEffect(() => {
@@ -284,8 +328,7 @@ export function DashboardContent() {
         if (!deletingAssetId) return;
         try {
             await fetch(`/api/assets?id=${deletingAssetId}`, { method: 'DELETE' });
-            fetchAssets();
-            fetchHistory();
+            await refreshDashboardData();
         } catch (error) {
             console.error("Failed to delete asset:", error);
         } finally {
@@ -317,13 +360,25 @@ export function DashboardContent() {
     // --- Calculations ---
 
     const totalBalance = assets.reduce((sum, asset) => {
-        const rawValue = asset.type === "BANK" ? asset.balance : (asset.totalValue || 0);
+        const rawValue = (asset.type === "BANK" || asset.type === "REAL_ESTATE" || asset.type === "CUSTOM")
+            ? (asset.balance || 0)
+            : (asset.totalValue || 0);
         return sum + CurrencyService.convertToUSD(rawValue, asset.currency || "USD");
     }, 0);
 
     const allocation = assets.reduce((acc, asset) => {
-        const type = asset.type === "BANK" ? "Cash" : asset.type === "STOCK" ? "Stock" : "Crypto";
-        const rawValue = asset.type === "BANK" ? asset.balance : (asset.totalValue || 0);
+        let type = "Other";
+        switch (asset.type) {
+            case "BANK": type = "Cash"; break;
+            case "STOCK": type = "Stock"; break;
+            case "CRYPTO": type = "Crypto"; break;
+            case "REAL_ESTATE": type = "Real Estate"; break;
+            case "CUSTOM": type = "Custom"; break;
+        }
+
+        const rawValue = (asset.type === "BANK" || asset.type === "REAL_ESTATE" || asset.type === "CUSTOM")
+            ? (asset.balance || 0)
+            : (asset.totalValue || 0);
         const value = CurrencyService.convertToUSD(rawValue, asset.currency || "USD");
         acc[type] = (acc[type] || 0) + value;
         return acc;
@@ -364,10 +419,7 @@ export function DashboardContent() {
                     <ConnectionManagerModal
                         open={isConnectionModalOpen}
                         onOpenChange={setIsConnectionModalOpen}
-                        onChanged={() => {
-                            fetchAssets();
-                            fetchHistory();
-                        }}
+                        onChanged={refreshDashboardData}
                     />
                     <AddAssetModal
                         open={isAddModalOpen}
@@ -386,8 +438,7 @@ export function DashboardContent() {
                             </Button>
                         }
                         onAssetAdded={() => {
-                            fetchAssets();
-                            fetchHistory();
+                            refreshDashboardData();
                             setIsAddModalOpen(false);
                             // Magic Moment transition handled by effect
                         }}
@@ -401,8 +452,7 @@ export function DashboardContent() {
                     onOpenChange={setIsEditModalOpen}
                     initialData={editingAsset}
                     onAssetAdded={() => {
-                        fetchAssets();
-                        fetchHistory();
+                        refreshDashboardData();
                         setIsEditModalOpen(false);
                     }}
                 />
@@ -447,7 +497,7 @@ export function DashboardContent() {
                                 {/* Left: Total Balance */}
                                 <div className="space-y-2">
                                     <h2 className="text-sm font-medium text-muted-foreground">Total Net Worth (USD)</h2>
-                                    <div className="text-4xl font-bold">${totalBalance.toLocaleString()}</div>
+                                    <div className="text-4xl font-bold">{CurrencyService.format(totalBalance, "USD")}</div>
                                     <div className={cn("flex items-center text-sm", dashboardMetrics.today.value >= 0 ? "text-green-500" : "text-red-500")}>
                                         <span className="font-medium">
                                             {dashboardMetrics.today.value > 0 ? "+" : ""}
