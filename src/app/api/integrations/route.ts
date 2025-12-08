@@ -95,17 +95,11 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Integration not found or unauthorized' }, { status: 404 });
         }
 
-        // Delete associated assets first
-        // The naming convention is "Symbol (SourceLabel)"
-        const sourceLabel = integration.name || integration.provider;
-        const suffix = `(${sourceLabel})`;
-
+        // Delete associated assets using the direct link
         await prisma.asset.deleteMany({
             where: {
                 userId: user.id,
-                name: {
-                    endsWith: suffix
-                }
+                integrationId: id
             }
         });
 

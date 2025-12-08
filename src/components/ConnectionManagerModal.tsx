@@ -19,6 +19,8 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+import { PlaidLinkButton } from "./PlaidLinkButton";
+
 interface Integration {
     id: string;
     provider: string;
@@ -32,6 +34,7 @@ interface ConnectionManagerModalProps {
 }
 
 const PROVIDERS = [
+    { id: "PLAID", name: "Bank Account", type: "BANK", icon: "🏦" },
     { id: "BINANCE", name: "Binance", type: "EXCHANGE", icon: "B" },
     { id: "OKX", name: "OKX", type: "EXCHANGE", icon: "O" },
     { id: "KRAKEN", name: "Kraken", type: "EXCHANGE", icon: "K" },
@@ -43,24 +46,21 @@ const PROVIDERS = [
 
 export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProps) {
     const [open, setOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState("list"); // 'list' | 'add'
+    const [activeTab, setActiveTab] = useState("list");
     const [integrations, setIntegrations] = useState<Integration[]>([]);
     const [loading, setLoading] = useState(false);
+    const [isPlaidOpen, setIsPlaidOpen] = useState(false); // New state to track Plaid status
 
-    // Form State
+    // ... existing state ...
     const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
     const [formData, setFormData] = useState({ name: "", apiKey: "", apiSecret: "", passphrase: "" });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-
-    // Delete Dialog State
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
-
-    // Sync State
     const [syncingId, setSyncingId] = useState<string | null>(null);
 
-    // Fetch Integrations
+    // ... existing fetchIntegrations ...
     const fetchIntegrations = async (showLoading = true) => {
         if (showLoading) setLoading(true);
         try {
@@ -81,8 +81,11 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
             fetchIntegrations();
             setActiveTab("list");
             resetForm();
+            setIsPlaidOpen(false); // Reset on open
         }
     }, [open]);
+
+    // ... existing methods resetForm, handleConnect, confirmDelete, handleSync, getProviderInfo ...
 
     const resetForm = () => {
         setSelectedProvider(null);
@@ -122,7 +125,6 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
         }
 
         if (selectedProvider === "WALLET_SOL") {
-            // Base58 check is complex without lib, just check length roughly (32-44 chars)
             if (formData.apiKey.length < 32 || formData.apiKey.length > 44) {
                 setError("Invalid Solana address length.");
                 return;
@@ -140,7 +142,6 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
         setError("");
 
         try {
-            // Prepare extraParams for OKX
             let extraParams = null;
             if (selectedProvider === "OKX") {
                 extraParams = JSON.stringify({ passphrase: formData.passphrase });
@@ -164,12 +165,10 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                 throw new Error(data.error || "Failed to connect");
             }
 
-            // Success - refresh list first so the new item appears
             await fetchIntegrations(false);
             setActiveTab("list");
             resetForm();
 
-            // Trigger immediate sync
             if (data.id) {
                 try {
                     await handleSync(data.id);
@@ -178,7 +177,7 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                 }
             }
 
-            onChanged(); // Notify parent to refresh assets
+            onChanged();
 
         } catch (err: any) {
             setError(err.message);
@@ -218,12 +217,12 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                 throw new Error(data.error || "Sync failed");
             }
 
-            await fetchIntegrations(false); // Update lastSync time
-            onChanged(); // Refresh dashboard
+            await fetchIntegrations(false);
+            onChanged();
         } catch (e: any) {
             console.error("Sync failed", e);
             alert(`Sync Failed: ${e.message}`);
-            throw e; // Re-throw so handleConnect can catch it if needed
+            throw e;
         } finally {
             setSyncingId(null);
         }
@@ -233,14 +232,28 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
 
     return (
         <>
-            <Dialog open={open} onOpenChange={setOpen}>
+            {/* 
+                We use modal={false} to prevent Radix UI from blocking pointer events to the Plaid iframe.
+                We do NOT toggle this dynamically (e.g. !isPlaidOpen) because changing the modal prop 
+                causes a re-render/remount that kills the active Plaid session immediately.
+            */}
+            <Dialog open={open} onOpenChange={setOpen} modal={false}>
                 <DialogTrigger asChild>
                     <Button variant="outline" className="gap-2">
                         <LinkIcon className="h-4 w-4" />
                         Manage Connections
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="w-full sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                <DialogContent
+                    className="w-full sm:max-w-[600px] max-h-[80vh] overflow-y-auto"
+                    onPointerDownOutside={(e) => {
+                        // Prevent closing when clicking on Plaid iframe/modal
+                        if (isPlaidOpen) e.preventDefault();
+                    }}
+                    onInteractOutside={(e) => {
+                        if (isPlaidOpen) e.preventDefault();
+                    }}
+                >
                     <DialogHeader>
                         <DialogTitle>Connection Manager</DialogTitle>
                         <DialogDescription>
@@ -254,7 +267,6 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                             <TabsTrigger value="add">Add New</TabsTrigger>
                         </TabsList>
 
-                        {/* LIST TAB */}
                         <TabsContent value="list" className="space-y-4 mt-4">
                             {loading ? (
                                 <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
@@ -309,7 +321,6 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                             )}
                         </TabsContent>
 
-                        {/* ADD TAB */}
                         <TabsContent value="add" className="mt-4">
                             {!selectedProvider ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -339,70 +350,102 @@ export function ConnectionManagerModal({ onChanged }: ConnectionManagerModalProp
                                         </h3>
                                     </div>
 
-                                    <div className="space-y-3">
-                                        <div className="space-y-1">
-                                            <Label>Name (Optional)</Label>
-                                            <Input
-                                                placeholder="e.g. My Main Wallet"
-                                                value={formData.name}
-                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <Label>{selectedProvider.includes("WALLET") ? "Wallet Address" : "API Key"}</Label>
-                                            <Input
-                                                placeholder={
-                                                    selectedProvider === "WALLET_ETH" ? "0x..." :
-                                                        selectedProvider === "WALLET_BTC" ? "bc1..." :
-                                                            selectedProvider === "WALLET_SOL" ? "Solana Address" :
-                                                                selectedProvider === "WALLET_TRON" ? "T..." :
-                                                                    "API Key"
-                                                }
-                                                value={formData.apiKey}
-                                                onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                                            />
-                                            {selectedProvider.includes("WALLET") && (
-                                                <p className="text-xs text-muted-foreground text-yellow-600">
-                                                    ⚠️ Only enter your PUBLIC address. Never enter your private key.
+                                    {selectedProvider === "PLAID" ? (
+                                        <div className="flex flex-col items-center justify-center py-6 space-y-4 text-center">
+                                            <div className="p-3 bg-primary/10 rounded-full">
+                                                <div className="text-4xl">🏦</div>
+                                            </div>
+                                            <div className="space-y-2 max-w-xs">
+                                                <h4 className="font-semibold">Connect via Plaid</h4>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Securely connect your bank account to automatically sync your balance.
                                                 </p>
+                                            </div>
+                                            <div className="w-full max-w-xs pt-4">
+                                                <PlaidLinkButton
+                                                    onLinked={() => {
+                                                        fetchIntegrations(false);
+                                                        setActiveTab("list");
+                                                        setSelectedProvider(null);
+                                                        // setIsPlaidOpen(false); // Handled by onExit with delay
+                                                        onChanged();
+                                                    }}
+                                                    onOpen={() => setIsPlaidOpen(true)}
+                                                    onExit={() => setIsPlaidOpen(false)}
+                                                />
+                                                <Button variant="ghost" className="w-full mt-2" onClick={() => setSelectedProvider(null)}>Cancel</Button>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground pt-4 flex items-center gap-1">
+                                                <span className="h-2 w-2 bg-green-500 rounded-full"></span>
+                                                AES-256 Encrypted Connection
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="space-y-1">
+                                                <Label>Name (Optional)</Label>
+                                                <Input
+                                                    placeholder="e.g. My Main Wallet"
+                                                    value={formData.name}
+                                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <Label>{selectedProvider.includes("WALLET") ? "Wallet Address" : "API Key"}</Label>
+                                                <Input
+                                                    placeholder={
+                                                        selectedProvider === "WALLET_ETH" ? "0x..." :
+                                                            selectedProvider === "WALLET_BTC" ? "bc1..." :
+                                                                selectedProvider === "WALLET_SOL" ? "Solana Address" :
+                                                                    selectedProvider === "WALLET_TRON" ? "T..." :
+                                                                        "API Key"
+                                                    }
+                                                    value={formData.apiKey}
+                                                    onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                                                />
+                                                {selectedProvider.includes("WALLET") && (
+                                                    <p className="text-xs text-muted-foreground text-yellow-600">
+                                                        ⚠️ Only enter your PUBLIC address. Never enter your private key.
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {(selectedProvider === "BINANCE" || selectedProvider === "OKX" || selectedProvider === "KRAKEN") && (
+                                                <div className="space-y-1">
+                                                    <Label>API Secret</Label>
+                                                    <Input
+                                                        type="password"
+                                                        placeholder="Secret Key"
+                                                        value={formData.apiSecret}
+                                                        onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
+                                                    />
+                                                </div>
                                             )}
-                                        </div>
 
-                                        {(selectedProvider === "BINANCE" || selectedProvider === "OKX" || selectedProvider === "KRAKEN") && (
-                                            <div className="space-y-1">
-                                                <Label>API Secret</Label>
-                                                <Input
-                                                    type="password"
-                                                    placeholder="Secret Key"
-                                                    value={formData.apiSecret}
-                                                    onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
-                                                />
+                                            {selectedProvider === "OKX" && (
+                                                <div className="space-y-1">
+                                                    <Label>Passphrase</Label>
+                                                    <Input
+                                                        type="password"
+                                                        placeholder="API Passphrase"
+                                                        value={formData.passphrase}
+                                                        onChange={(e) => setFormData({ ...formData, passphrase: e.target.value })}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {error && <p className="text-sm text-destructive">{error}</p>}
+
+                                            <div className="flex justify-end gap-2 mt-4">
+                                                <Button variant="ghost" onClick={() => setSelectedProvider(null)}>Cancel</Button>
+                                                <Button onClick={handleConnect} disabled={submitting}>
+                                                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Connect & Sync
+                                                </Button>
                                             </div>
-                                        )}
-
-                                        {selectedProvider === "OKX" && (
-                                            <div className="space-y-1">
-                                                <Label>Passphrase</Label>
-                                                <Input
-                                                    type="password"
-                                                    placeholder="API Passphrase"
-                                                    value={formData.passphrase}
-                                                    onChange={(e) => setFormData({ ...formData, passphrase: e.target.value })}
-                                                />
-                                            </div>
-                                        )}
-
-                                        {error && <p className="text-sm text-destructive">{error}</p>}
-
-                                        <div className="flex justify-end gap-2 mt-4">
-                                            <Button variant="ghost" onClick={() => setSelectedProvider(null)}>Cancel</Button>
-                                            <Button onClick={handleConnect} disabled={submitting}>
-                                                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                Connect & Sync
-                                            </Button>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             )}
                         </TabsContent>

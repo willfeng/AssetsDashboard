@@ -165,8 +165,6 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
     const onTabChange = (value: string) => {
         const newType = value as AssetType
         setActiveTab(newType)
-        // When switching types in Add mode, clear relevant fields but maybe keep name?
-        // For simplicity, just clear if not editing.
         if (!initialData) {
             form.reset({
                 name: "",
@@ -220,9 +218,6 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                 </DialogHeader>
 
                 <Tabs value={activeTab} className="w-full">
-                    {/* Custom Sliding Tabs List - Hide in Edit mode if type change is not allowed, or allow it? 
-                        Usually changing type (Bank -> Stock) is rare. Let's disable tabs in Edit mode for simplicity 
-                        or just hide them to prevent confusion. */}
                     {!initialData && (
                         <div className="relative flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground w-full mb-4">
                             <div
@@ -260,7 +255,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Bank Name</FormLabel>
-                                                    <FormControl><Input placeholder="e.g. Chase Checking" {...field} /></FormControl>
+                                                    <FormControl><Input placeholder="e.g. Chase Checking" {...field} value={(field.value as any) ?? ''} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -271,7 +266,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Balance</FormLabel>
-                                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                                    <FormControl><Input type="number" placeholder="0.00" {...field} value={(field.value as any) ?? ''} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -306,7 +301,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Interest Rate (APY %)</FormLabel>
-                                                    <FormControl><Input type="number" placeholder="e.g. 4.5" {...field} /></FormControl>
+                                                    <FormControl><Input type="number" placeholder="e.g. 4.5" {...field} value={(field.value as any) ?? ''} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -322,7 +317,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Name</FormLabel>
-                                                    <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. Apple" : "e.g. Bitcoin"} {...field} /></FormControl>
+                                                    <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. Apple" : "e.g. Bitcoin"} {...field} value={(field.value as any) ?? ''} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -333,7 +328,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Symbol</FormLabel>
-                                                    <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. AAPL" : "e.g. BTC"} {...field} /></FormControl>
+                                                    <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. AAPL" : "e.g. BTC"} {...field} value={(field.value as any) ?? ''} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -370,7 +365,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Average Buy Price ({watchedCurrency || "USD"}) <span className="text-xs text-muted-foreground font-normal">(Optional)</span></FormLabel>
-                                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                                    <FormControl><Input type="number" placeholder="0.00" {...field} value={(field.value as any) ?? ''} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -381,7 +376,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Quantity</FormLabel>
-                                                    <FormControl><Input type="number" step="any" placeholder="0.00" {...field} /></FormControl>
+                                                    <FormControl><Input type="number" step="any" placeholder="0.00" {...field} value={(field.value as any) ?? ''} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}

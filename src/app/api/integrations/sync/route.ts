@@ -8,6 +8,7 @@ import { recordDailyHistoryWithTotal } from '@/lib/history';
 import { EthereumProvider } from '@/lib/crypto-providers/ethereum';
 import { BitcoinProvider } from '@/lib/crypto-providers/bitcoin';
 import { ExchangeFactory } from '@/lib/exchanges/factory';
+import { PlaidSyncService } from '@/lib/plaid-sync';
 
 export async function POST(request: Request) {
     try {
@@ -32,6 +33,14 @@ export async function POST(request: Request) {
         }
 
         const providerType = integration.provider.toUpperCase();
+
+        // --- PLAID SPECIAL CASE ---
+        if (providerType === 'PLAID') {
+            const syncedCount = await PlaidSyncService.syncIntegration(integrationId, user.id);
+            await recordDailyHistoryWithTotal(user.id);
+            return NextResponse.json({ success: true, syncedCount });
+        }
+
         const apiKey = decrypt(integration.apiKey);
         // Secret is optional for wallets
         const secret = integration.apiSecret ? decrypt(integration.apiSecret) : '';
