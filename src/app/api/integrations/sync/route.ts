@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { decrypt } from '@/lib/encryption';
-import { recordDailyHistoryWithTotal } from '@/lib/history';
+// REMOVED: import { recordDailyHistoryWithTotal } from '@/lib/history';
 
 import { EthereumProvider } from '@/lib/crypto-providers/ethereum';
 import { BitcoinProvider } from '@/lib/crypto-providers/bitcoin';
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         // --- PLAID SPECIAL CASE ---
         if (providerType === 'PLAID') {
             const syncedCount = await PlaidSyncService.syncIntegration(integrationId, user.id);
-            await recordDailyHistoryWithTotal(user.id);
+            // REMOVED: await recordDailyHistoryWithTotal(user.id);
             return NextResponse.json({ success: true, syncedCount });
         }
 
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
         });
 
         // Record history
-        await recordDailyHistoryWithTotal(user.id);
+        // REMOVED: await recordDailyHistoryWithTotal(user.id);
 
         return NextResponse.json({ success: true, syncedCount });
 

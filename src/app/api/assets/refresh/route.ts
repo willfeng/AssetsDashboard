@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { MarketDataService } from '@/lib/market-data';
-import { recordDailyHistoryWithTotal, recordAssetSnapshot } from '@/lib/history';
+import { recordAssetSnapshot } from '@/lib/history';
 import { checkAndBackfillHistory } from '@/lib/backfill';
 
 export async function POST() {
@@ -58,7 +58,9 @@ export async function POST() {
         await checkAndBackfillHistory(user.id);
 
         // Optionally record history snapshot
-        await recordDailyHistoryWithTotal(user.id);
+        // REMOVED: await recordDailyHistoryWithTotal(user.id);
+        // Reason: We now rely on Frontend SSOT to push the correct total value. 
+        // Backend recalculation causes race conditions and data discrepancies.
 
         return NextResponse.json({ success: true, assets: updatedAssets });
 

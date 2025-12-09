@@ -9,6 +9,7 @@ import { AssetList } from "@/components/AssetList";
 import { ConnectionManagerModal } from "@/components/ConnectionManagerModal";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { AddAssetModal } from "@/components/AddAssetModal";
+import { SettingsModal } from "@/components/SettingsModal";
 import { Asset, HistoricalDataPoint } from "@/types";
 import {
     AlertDialog,
@@ -146,11 +147,9 @@ export function DashboardContent() {
             console.log("Refreshing prices...");
             const res = await fetch('/api/assets/refresh', { method: 'POST' });
             if (res.ok) {
-                const data = await res.json();
-                setAssets(data.assets);
-                setLastUpdated(new Date());
-                fetchHistory();
-                fetchMetrics();
+                // Instead of partial update, trigger strict full refresh flow
+                // This ensures SSOT logic (Calc -> Push) runs.
+                await refreshDashboardData();
             }
         } catch (error) {
             console.error("Failed to refresh prices:", error);
@@ -189,9 +188,8 @@ export function DashboardContent() {
                     });
                 }
 
-                await fetchAssets();
-                await fetchHistory();
-                setLastUpdated(new Date());
+                // Sync complete. Now do a full SSOT refresh.
+                await refreshDashboardData();
                 setIsSyncing(false);
             }
         } catch (error) {
@@ -444,6 +442,10 @@ export function DashboardContent() {
                         }}
                     />
                     <OnboardingModal />
+                    <SettingsModal onHistoryReset={() => {
+                        refreshDashboardData();
+                        // Optional: Show success toast
+                    }} />
                 </div>
 
                 {/* Hidden Edit Modal - Controlled */}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { MarketDataService } from '@/lib/market-data';
-import { recordDailyHistoryWithTotal } from '@/lib/history';
+import { recordAssetSnapshot } from '@/lib/history';
 
 export async function GET() {
     try {
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
             }
         }
 
-        await recordDailyHistoryWithTotal(user.id);
+        // REMOVED: await recordDailyHistoryWithTotal(user.id);
 
         return NextResponse.json({
             ...newAsset,
@@ -154,7 +154,7 @@ export async function DELETE(request: Request) {
             where: { id },
         });
 
-        await recordDailyHistoryWithTotal(user.id);
+        // REMOVED: await recordDailyHistoryWithTotal(user.id);
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
@@ -198,7 +198,7 @@ export async function PUT(request: Request) {
             }
         });
 
-        await recordDailyHistoryWithTotal(user.id);
+        // REMOVED: await recordDailyHistoryWithTotal(user.id);
 
         return NextResponse.json(updatedAsset);
     } catch (error: any) {
