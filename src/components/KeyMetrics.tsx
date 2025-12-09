@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Activity, Target, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
+import { CurrencyService } from "@/lib/currency";
 
 interface MetricsData {
     totalReturn: { value: number; absolute: number };
@@ -40,7 +41,7 @@ export default function KeyMetrics({ metrics, isLoading }: KeyMetricsProps) {
         {
             title: "Total Return",
             value: `${metrics.totalReturn.value > 0 ? "+" : ""}${metrics.totalReturn.value}%`,
-            subValue: `$${metrics.totalReturn.absolute.toLocaleString()}`,
+            subValue: CurrencyService.format(metrics.totalReturn.absolute, "USD"),
             icon: metrics.totalReturn.value >= 0 ? TrendingUp : TrendingDown,
             color: metrics.totalReturn.value >= 0 ? "text-emerald-500" : "text-rose-500",
             chartColor: metrics.totalReturn.value >= 0 ? "#10b981" : "#f43f5e",

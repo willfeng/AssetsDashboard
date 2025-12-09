@@ -81,7 +81,7 @@ export default function ConcentrationRisk({ assets, isLoading }: ConcentrationRi
                                 ))}
                             </Pie>
                             <Tooltip
-                                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                                formatter={(value: number) => [CurrencyService.format(value, "USD"), 'Value']}
                                 contentStyle={{
                                     backgroundColor: "rgba(255, 255, 255, 0.95)",
                                     borderRadius: "8px",

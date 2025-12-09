@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, TrendingDown, Flame } from "lucide-react";
+import { CurrencyService } from "@/lib/currency";
 
 interface BestWorstDaysProps {
     metrics: {
@@ -50,7 +51,7 @@ export default function BestWorstDays({ metrics, isLoading }: BestWorstDaysProps
                             <span className="text-lg font-bold text-emerald-500">+{metrics.bestDay.percent.toFixed(2)}%</span>
                             <span className="text-xs text-muted-foreground">{metrics.bestDay.date}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">+${metrics.bestDay.value.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">+{CurrencyService.format(metrics.bestDay.value, "USD")}</p>
                     </div>
                 </div>
 
@@ -65,7 +66,7 @@ export default function BestWorstDays({ metrics, isLoading }: BestWorstDaysProps
                             <span className="text-lg font-bold text-rose-500">{metrics.worstDay.percent.toFixed(2)}%</span>
                             <span className="text-xs text-muted-foreground">{metrics.worstDay.date}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">${metrics.worstDay.value.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{CurrencyService.format(metrics.worstDay.value, "USD")}</p>
                     </div>
                 </div>
 

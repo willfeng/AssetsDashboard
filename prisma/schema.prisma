@@ -53,6 +53,11 @@ model Asset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Caching mechanism
+  lastPrice       Float?   // Cached Unit Price
+  lastChange24h   Float?   // Cached 24h Change %
+  lastPriceUpdated DateTime? // When was this price last fetched?
+
   snapshots AssetSnapshot[]
 }
 

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Asset, StockAsset, CryptoAsset } from "@/types";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CurrencyService } from "@/lib/currency";
 
 interface TopMoversProps {
     assets: Asset[];
@@ -61,7 +62,7 @@ export default function TopMovers({ assets, isLoading }: TopMoversProps) {
                                         </div>
                                         <div className="text-right">
                                             <p className="font-bold text-emerald-500">+{asset.change24h?.toFixed(2)}%</p>
-                                            <p className="text-xs text-muted-foreground">${asset.currentPrice?.toLocaleString()}</p>
+                                            <p className="text-xs text-muted-foreground">{CurrencyService.format(asset.currentPrice || 0, "USD")}</p>
                                         </div>
                                     </div>
                                 ))
@@ -89,7 +90,7 @@ export default function TopMovers({ assets, isLoading }: TopMoversProps) {
                                         </div>
                                         <div className="text-right">
                                             <p className="font-bold text-rose-500">{asset.change24h?.toFixed(2)}%</p>
-                                            <p className="text-xs text-muted-foreground">${asset.currentPrice?.toLocaleString()}</p>
+                                            <p className="text-xs text-muted-foreground">{CurrencyService.format(asset.currentPrice || 0, "USD")}</p>
                                         </div>
                                     </div>
                                 ))

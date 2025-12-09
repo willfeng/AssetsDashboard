@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Home, Gem } from "lucide-react"
+import { Home, Gem, Landmark, LineChart, Bitcoin } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -227,7 +227,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                     </DialogTrigger>
                 )
             )}
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>{initialData ? "Edit Asset" : "Add New Asset"}</DialogTitle>
                     <DialogDescription>
@@ -256,9 +256,9 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                         activeTab === type ? "text-foreground" : "text-muted-foreground hover:text-foreground/70"
                                     )}
                                 >
-                                    {type === "BANK" && "Bank"}
-                                    {type === "STOCK" && "Stock"}
-                                    {type === "CRYPTO" && "Crypto"}
+                                    {type === "BANK" && <span className="flex items-center gap-1"><Landmark className="w-3 h-3" /> Bank</span>}
+                                    {type === "STOCK" && <span className="flex items-center gap-1"><LineChart className="w-3 h-3" /> Stock</span>}
+                                    {type === "CRYPTO" && <span className="flex items-center gap-1"><Bitcoin className="w-3 h-3" /> Crypto</span>}
                                     {type === "REAL_ESTATE" && <span className="flex items-center gap-1"><Home className="w-3 h-3" /> Property</span>}
                                     {type === "CUSTOM" && <span className="flex items-center gap-1"><Gem className="w-3 h-3" /> Custom</span>}
                                 </button>
@@ -268,7 +268,7 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
 
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
-                            <div className="min-h-[340px] space-y-4">
+                            <div className="min-h-[460px] space-y-4">
                                 {activeTab === "BANK" && (
                                     <>
                                         <FormField

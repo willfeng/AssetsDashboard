@@ -112,7 +112,7 @@ export default function DashboardCharts({ pieData, historyData, isLoading, asset
                                     <PieChart>
                                         <ChartTooltip
                                             cursor={false}
-                                            content={<ChartTooltipContent hideLabel />}
+                                            content={<ChartTooltipContent hideLabel formatter={(value) => CurrencyService.format(Number(value), "USD")} />}
                                         />
                                         <Pie
                                             data={currentPieData}

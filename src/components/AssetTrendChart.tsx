@@ -79,7 +79,7 @@ export function AssetTrendChart({ data, isLoading, className, height = "100%" }:
                     />
                     <ChartTooltip
                         cursor={false}
-                        content={<ChartTooltipContent indicator="line" />}
+                        content={<ChartTooltipContent indicator="line" formatter={(value) => CurrencyService.format(Number(value), "USD")} />}
                     />
                     <Line
                         dataKey="value"

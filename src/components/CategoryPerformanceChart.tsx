@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
+import { CurrencyService } from "@/lib/currency";
 
 interface CategoryPerformanceProps {
     data: {
@@ -83,6 +84,7 @@ export default function CategoryPerformanceChart({ data, isLoading }: CategoryPe
                                     boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
                                 }}
                                 labelStyle={{ color: "#374151", fontWeight: 600, marginBottom: "4px" }}
+                                formatter={(value: number) => [CurrencyService.format(value, "USD"), "Value"]}
                             />
                             <Legend verticalAlign="top" height={36} iconType="circle" />
                             <Line

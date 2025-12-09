@@ -36,6 +36,16 @@ export async function POST() {
                             totalValue: (asset.quantity || 0) * marketData.price
                         };
 
+                        // Update DB with new price (CACHE)
+                        await prisma.asset.update({
+                            where: { id: asset.id },
+                            data: {
+                                lastPrice: marketData.price,
+                                lastChange24h: marketData.change24h,
+                                lastPriceUpdated: new Date()
+                            }
+                        });
+
                         // Record Snapshot asynchronously
                         recordAssetSnapshot(asset.id, marketData.price, asset.quantity || 0);
 

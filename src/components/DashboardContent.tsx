@@ -200,43 +200,53 @@ export function DashboardContent() {
 
     // --- Effects ---
 
-    const refreshDashboardData = useCallback(async () => {
-        // 1. Fetch assets first to get latest values
-        const assetsRes = await fetch('/api/assets', { cache: 'no-store' });
-        if (!assetsRes.ok) return;
-        const assetsData = await assetsRes.json();
-        const assetList = Array.isArray(assetsData) ? assetsData : [];
-        setAssets(assetList);
+    // 2. Calculate Total Balance (Client-Side Logic to match UI)
+    // Note: We duplicate the calculation here to ensure what we push is what we render
+    // Or we could rely on the render cycle, but that's async.
+    // Better to calculate explicitly.
 
-        // 2. Calculate Total Balance (Client-Side Logic to match UI)
-        // Note: We duplicate the calculation here to ensure what we push is what we render
-        // Or we could rely on the render cycle, but that's async.
-        // Better to calculate explicitly.
-
-        let calculatedTotal = 0;
-        // We need CurrencyService to be ready. It is fetched in init.
-
-        for (const asset of assetList) {
-            const rawValue = (asset.type === "BANK" || asset.type === "REAL_ESTATE" || asset.type === "CUSTOM")
-                ? (asset.balance || 0)
-                : (asset.totalValue || 0);
-            calculatedTotal += CurrencyService.convertToUSD(rawValue, asset.currency || "USD");
-        }
-
-        // 3. Push this "Truth" to Backend History
+    const refreshDashboardData = useCallback(async (force: boolean = false) => {
         try {
-            await fetch('/api/history', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ value: calculatedTotal })
-            });
-        } catch (e) {
-            console.error("Failed to sync history:", e);
-        }
+            // 1. Fetch assets first to get latest values
+            const assetsRes = await fetch('/api/assets' + (force ? '?refresh=true' : ''), { cache: 'no-store' });
+            if (!assetsRes.ok) return;
+            const assetsData = await assetsRes.json();
+            const assetList = Array.isArray(assetsData) ? assetsData : [];
+            setAssets(assetList);
 
-        // 4. Then Fetch History (which will now have the correct point) and Metrics
-        await fetchHistory();
-        await fetchMetrics();
+            // 2. Calculate Total Balance (Client-Side Logic to match UI)
+            // Note: We duplicate the calculation here to ensure what we push is what we render
+            // Or we could rely on the render cycle, but that's async.
+            // Better to calculate explicitly.
+
+            let calculatedTotal = 0;
+            // We need CurrencyService to be ready. It is fetched in init.
+
+            for (const asset of assetList) {
+                const rawValue = (asset.type === "BANK" || asset.type === "REAL_ESTATE" || asset.type === "CUSTOM")
+                    ? (asset.balance || 0)
+                    : (asset.totalValue || 0);
+                calculatedTotal += CurrencyService.convertToUSD(rawValue, asset.currency || "USD");
+            }
+
+            // 3. Push this "Truth" to Backend History
+            try {
+                await fetch('/api/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: calculatedTotal })
+                });
+            } catch (e) {
+                console.error("Failed to sync history:", e);
+            }
+
+            // 4. Then Fetch History (which will now have the correct point) and Metrics
+            await fetchHistory();
+            await fetchMetrics();
+            setLastUpdated(new Date());
+        } catch (error) {
+            console.error("Failed to refresh dashboard:", error);
+        }
     }, [fetchHistory, fetchMetrics]);
 
     // --- Effects ---
@@ -246,19 +256,24 @@ export function DashboardContent() {
 
         const init = async () => {
             setLoading(true);
-            await CurrencyService.fetchRates();
-            // Fetch user status alongside data
 
-            await fetchUserStatus();
+            // Parallel fetching to reduce initial load time
+            await Promise.all([
+                CurrencyService.fetchRates(),
+                fetchUserStatus(),
+                refreshDashboardData(false) // Optimistic Load: Fetch cached data immediately
+            ]);
 
-            // Sequential fetching to ensure history is updated before metrics are calculated
-            await refreshDashboardData();
-            setLoading(false);
+            setLoading(false); // Reveal UI instantly
+
+            // 2. Background Refresh: Force strict update (Slow but silent)
+            refreshDashboardData(true);
+
             checkAutoSync();
         };
         init();
 
-        const interval = setInterval(refreshPrices, 5 * 60 * 1000);
+        const interval = setInterval(refreshDashboardData, 5 * 60 * 1000);
         return () => clearInterval(interval);
     }, [isSignedIn, userId, refreshPrices, checkAutoSync, fetchUserStatus, refreshDashboardData]);
 
@@ -553,7 +568,7 @@ export function DashboardContent() {
                                             {returnPct > 0 ? "+" : ""}{returnPct}%
                                         </div>
                                         <div className="text-sm font-medium text-muted-foreground mt-1">
-                                            {returnVal > 0 ? "+" : ""}${returnVal.toLocaleString()}
+                                            {returnVal > 0 ? "+" : ""}{CurrencyService.format(returnVal, "USD")}
                                         </div>
                                     </div>
                                 </div>

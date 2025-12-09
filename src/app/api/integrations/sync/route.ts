@@ -9,6 +9,7 @@ import { EthereumProvider } from '@/lib/crypto-providers/ethereum';
 import { BitcoinProvider } from '@/lib/crypto-providers/bitcoin';
 import { ExchangeFactory } from '@/lib/exchanges/factory';
 import { PlaidSyncService } from '@/lib/plaid-sync';
+import { MarketDataService } from '@/lib/market-data';
 
 export async function POST(request: Request) {
     try {
@@ -99,6 +100,19 @@ export async function POST(request: Request) {
             const sourceLabel = integration.name || providerType;
             const assetName = `${symbol} (${sourceLabel})`;
 
+            // Fetch latest price for this asset
+            let currentPrice = 0;
+            let change24h = 0;
+            try {
+                // Default to CRYPTO for wallet/exchange syncs. 
+                // If we support stocks via sync later, we might need logic here.
+                const marketData = await MarketDataService.getAssetPrice(symbol, 'CRYPTO');
+                currentPrice = marketData.price;
+                change24h = marketData.change24h;
+            } catch (e) {
+                console.warn(`[Sync] Failed to fetch price for ${symbol}:`, e);
+            }
+
             const existingAsset = await prisma.asset.findFirst({
                 where: {
                     userId: user.id,
@@ -113,7 +127,10 @@ export async function POST(request: Request) {
                     where: { id: existingAsset.id },
                     data: {
                         quantity: quantity,
-                        integrationId: integration.id
+                        integrationId: integration.id,
+                        lastPrice: currentPrice || existingAsset.lastPrice,
+                        lastChange24h: change24h || existingAsset.lastChange24h, // Prioritize new data, keep old if fail
+                        lastPriceUpdated: currentPrice ? new Date() : undefined
                     }
                 });
             } else {
@@ -125,7 +142,10 @@ export async function POST(request: Request) {
                         symbol: symbol.toUpperCase(),
                         quantity: quantity,
                         currency: 'USD',
-                        integrationId: integration.id
+                        integrationId: integration.id,
+                        lastPrice: currentPrice,
+                        lastChange24h: change24h,
+                        lastPriceUpdated: new Date()
                     }
                 });
             }

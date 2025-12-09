@@ -3,6 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, ArrowDownRight, Target, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CurrencyService } from "@/lib/currency";
 
 interface MetricsData {
     totalReturn: { value: number; absolute: number };
@@ -48,7 +49,7 @@ export default function PerformanceKPIs({ metrics, isLoading }: PerformanceKPIsP
         {
             title: "总收益率",
             value: `${metrics.totalReturn.value > 0 ? "+" : ""}${metrics.totalReturn.value}%`,
-            subtitle: `${metrics.totalReturn.absolute > 0 ? "+" : ""}$${Math.abs(metrics.totalReturn.absolute).toLocaleString()}`,
+            subtitle: `${metrics.totalReturn.absolute > 0 ? "+" : ""}${CurrencyService.format(metrics.totalReturn.absolute, "USD")}`,
             icon: metrics.totalReturn.value >= 0 ? TrendingUp : TrendingDown,
             iconColor: metrics.totalReturn.value >= 0 ? "text-green-600" : "text-red-600",
             valueColor: metrics.totalReturn.value >= 0 ? "text-green-600" : "text-red-600",

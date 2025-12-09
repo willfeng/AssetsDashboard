@@ -248,7 +248,9 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
                                                 </div>
                                                 <div className="flex items-center">
                                                     <div className="text-right">
-                                                        <div className="font-medium">${asset.totalValue?.toLocaleString()}</div>
+                                                        <div className="font-medium">
+                                                            {CurrencyService.format(asset.totalValue || 0, "USD")}
+                                                        </div>
                                                         {asset.averageBuyPrice && asset.averageBuyPrice > 0 && asset.quantity > 0 && (
                                                             <div className="text-[10px] mt-0.5 flex justify-end gap-1">
                                                                 <span className="text-muted-foreground">Ret:</span>

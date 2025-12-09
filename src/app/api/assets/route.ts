@@ -4,8 +4,15 @@ import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { MarketDataService } from '@/lib/market-data';
 import { recordAssetSnapshot } from '@/lib/history';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const forceRefresh = searchParams.get('refresh') === 'true';
+
         const user = await getAuthenticatedUser();
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,23 +29,45 @@ export async function GET() {
 
         // Enrich with market data (prices)
         const enrichedAssets = await Promise.all(assets.map(async (asset: any) => {
-            let currentPrice = 0;
+            let currentPrice = asset.lastPrice || 0;
+            let lastUpdated = asset.lastPriceUpdated;
             let totalValue = 0;
-            let change24h = 0;
+            let change24h = asset.lastChange24h || 0;
 
             if (asset.type === 'BANK' || asset.type === 'REAL_ESTATE' || asset.type === 'CUSTOM') {
                 totalValue = asset.balance || 0;
             } else if (asset.type === 'STOCK' || asset.type === 'CRYPTO') {
-                try {
-                    if (asset.symbol) {
+                // CACHING STRATEGY:
+                // Use the DB price (lastPrice). If missing, we return 0 (or fallback to fetch).
+                // To prevent "Zero Balance" shock, if lastPrice is missing, we could try to fetch.
+                // But generally, the "Refresh" loop should handle it. 
+
+                // Auto-Refresh Logic: If price is 0 OR stale (> 5 mins) OR Forced, fetch fresh data.
+                const isStale = forceRefresh || !lastUpdated || (new Date().getTime() - new Date(lastUpdated).getTime() > CACHE_DURATION);
+
+                if ((currentPrice === 0 || isStale || asset.lastChange24h === null || asset.lastChange24h === undefined) && asset.symbol) {
+                    try {
+                        console.log(`[API] Refreshing price for ${asset.symbol} (Stale: ${isStale}, Force: ${forceRefresh})`);
                         const marketData = await MarketDataService.getAssetPrice(asset.symbol, asset.type as any);
                         currentPrice = marketData.price;
                         change24h = marketData.change24h;
-                        totalValue = (asset.quantity || 0) * currentPrice;
+
+                        // Self-Heal: Update DB asynchronously (fire and forget to not block UI too much)
+                        prisma.asset.update({
+                            where: { id: asset.id },
+                            data: {
+                                lastPrice: currentPrice,
+                                lastChange24h: change24h,
+                                lastPriceUpdated: new Date()
+                            }
+                        }).catch(e => console.error("Failed to self-heal price:", e));
+
+                    } catch (e) {
+                        // ignore
                     }
-                } catch (e) {
-                    console.error(`Failed to fetch price for ${asset.symbol}`, e);
                 }
+
+                totalValue = (asset.quantity || 0) * currentPrice;
             }
 
             return {
@@ -50,7 +79,8 @@ export async function GET() {
                 integrationId: asset.integrationId,
                 currentPrice,
                 totalValue,
-                change24h
+                change24h,
+                lastPriceUpdated: lastUpdated
             };
         }));
 
@@ -77,6 +107,23 @@ export async function POST(request: Request) {
             );
         }
 
+        // 1. Prepare Initial Price
+        let currentPrice = 0;
+        let change24h = 0;
+
+        if (body.type === 'STOCK' || body.type === 'CRYPTO') {
+            if (body.symbol) {
+                try {
+                    const marketData = await MarketDataService.getAssetPrice(body.symbol, body.type as any);
+                    currentPrice = marketData.price;
+                    change24h = marketData.change24h;
+                } catch (e) {
+                    console.warn(`Could not fetch price for ${body.symbol}`);
+                }
+            }
+        }
+
+        // 2. Create Asset with Price
         const newAsset = await prisma.asset.create({
             data: {
                 userId: user.id,
@@ -88,26 +135,17 @@ export async function POST(request: Request) {
                 symbol: body.symbol,
                 quantity: body.quantity,
                 averageBuyPrice: body.averageBuyPrice,
+                lastPrice: currentPrice, // Save it!
+                lastChange24h: change24h, // Save it!
+                lastPriceUpdated: new Date()
             }
         });
 
-        let currentPrice = 0;
         let totalValue = 0;
-        let change24h = 0;
-
         if (newAsset.type === 'BANK' || newAsset.type === 'REAL_ESTATE' || newAsset.type === 'CUSTOM') {
             totalValue = newAsset.balance || 0;
         } else {
-            if (newAsset.symbol) {
-                try {
-                    const marketData = await MarketDataService.getAssetPrice(newAsset.symbol, newAsset.type as any);
-                    currentPrice = marketData.price;
-                    change24h = marketData.change24h;
-                    totalValue = (newAsset.quantity || 0) * currentPrice;
-                } catch (e) {
-                    console.warn(`Could not fetch price for ${newAsset.symbol}`);
-                }
-            }
+            totalValue = (newAsset.quantity || 0) * currentPrice;
         }
 
         // REMOVED: await recordDailyHistoryWithTotal(user.id);

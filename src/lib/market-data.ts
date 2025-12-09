@@ -66,7 +66,7 @@ export const MarketDataService = {
         try {
             console.log(`[MarketData] Fetching crypto price for ${pair} from Binance`);
             // Use 24hr ticker to get both price and change
-            const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`);
+            const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`, { cache: 'no-store' });
 
             if (!response.ok) {
                 if (symbol.toUpperCase() === 'USDT' || symbol.toUpperCase() === 'USDC') {

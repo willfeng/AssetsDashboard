@@ -53,7 +53,7 @@ export class CurrencyService {
      */
     static format(amount: number, currency: string): string {
         const symbol = this.getSymbol(currency);
-        return `${symbol}${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+        return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 
     /**

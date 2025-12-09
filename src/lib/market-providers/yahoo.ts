@@ -6,7 +6,7 @@ export const YahooProvider: StockDataProvider = {
 
     async getPrice(symbol: string): Promise<{ price: number; change24h: number }> {
         console.log(`[YahooProvider] Fetching price for ${symbol}`);
-        const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`);
+        const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`, { cache: 'no-store' });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

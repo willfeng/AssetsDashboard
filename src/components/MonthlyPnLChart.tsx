@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell, CartesianGrid } from "recharts";
+import { CurrencyService } from "@/lib/currency";
 
 interface MonthlyPnLProps {
     data: { month: string; pnl: number }[] | null;
@@ -66,11 +67,11 @@ export default function MonthlyPnLChart({ data, isLoading }: MonthlyPnLProps) {
                                 axisLine={false}
                                 tickLine={false}
                                 width={60}
-                                tickFormatter={(value) => new Intl.NumberFormat('en-US', { 
-                                    style: 'currency', 
-                                    currency: 'USD', 
-                                    notation: "compact", 
-                                    maximumFractionDigits: 1 
+                                tickFormatter={(value) => new Intl.NumberFormat('en-US', {
+                                    style: 'currency',
+                                    currency: 'USD',
+                                    notation: "compact",
+                                    maximumFractionDigits: 1
                                 }).format(value)}
                             />
                             <Tooltip
@@ -81,7 +82,7 @@ export default function MonthlyPnLChart({ data, isLoading }: MonthlyPnLProps) {
                                     border: "none",
                                     boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
                                 }}
-                                formatter={(value: number) => [`$${value.toLocaleString()}`, 'P&L']}
+                                formatter={(value: number) => [CurrencyService.format(value, "USD"), 'P&L']}
                             />
                             <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                                 {formattedData.map((entry, index) => (
