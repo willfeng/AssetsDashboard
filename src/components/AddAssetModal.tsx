@@ -229,9 +229,21 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
             )}
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                    <DialogTitle>{initialData ? "Edit Asset" : "Add New Asset"}</DialogTitle>
+                    <DialogTitle>
+                        {initialData ? (
+                            initialData.integrationId ? (
+                                <div className="flex items-center gap-2">
+                                    Edit Synced Asset
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-normal">Synced</span>
+                                </div>
+                            ) : "Edit Asset"
+                        ) : "Add New Asset"}
+                    </DialogTitle>
                     <DialogDescription>
-                        {initialData ? "Update the details of your asset." : "Enter the details of your asset."} Click save when you're done.
+                        {initialData?.integrationId
+                            ? "You can only edit cost basis for synced assets. Quantity is managed automatically."
+                            : (initialData ? "Update the details of your asset." : "Enter the details of your asset.")}
+                        Click save when you're done.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -339,7 +351,14 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Name</FormLabel>
-                                                    <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. Apple" : "e.g. Bitcoin"} {...field} value={(field.value as any) ?? ''} /></FormControl>
+                                                    <FormControl>
+                                                        <Input
+                                                            placeholder={activeTab === "STOCK" ? "e.g. Apple" : "e.g. Bitcoin"}
+                                                            {...field}
+                                                            value={(field.value as any) ?? ''}
+                                                            disabled={!!initialData?.integrationId}
+                                                        />
+                                                    </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -350,7 +369,14 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Symbol</FormLabel>
-                                                    <FormControl><Input placeholder={activeTab === "STOCK" ? "e.g. AAPL" : "e.g. BTC"} {...field} value={(field.value as any) ?? ''} /></FormControl>
+                                                    <FormControl>
+                                                        <Input
+                                                            placeholder={activeTab === "STOCK" ? "e.g. AAPL" : "e.g. BTC"}
+                                                            {...field}
+                                                            value={(field.value as any) ?? ''}
+                                                            disabled={!!initialData?.integrationId}
+                                                        />
+                                                    </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -398,7 +424,17 @@ export function AddAssetModal({ onAssetAdded, initialData, trigger, open: contro
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Quantity</FormLabel>
-                                                    <FormControl><Input type="number" step="any" placeholder="0.00" {...field} value={(field.value as any) ?? ''} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            step="any"
+                                                            placeholder="0.00"
+                                                            {...field}
+                                                            value={(field.value as any) ?? ''}
+                                                            onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                                                            disabled={!!initialData?.integrationId}
+                                                        />
+                                                    </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}

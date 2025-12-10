@@ -10,6 +10,7 @@ import { ConnectionManagerModal } from "@/components/ConnectionManagerModal";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { AddAssetModal } from "@/components/AddAssetModal";
 import { SettingsModal } from "@/components/SettingsModal";
+import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { Asset, HistoricalDataPoint } from "@/types";
 import {
     AlertDialog,
@@ -26,6 +27,7 @@ import { CurrencyService } from "@/lib/currency";
 import { AssetTrendChart } from "@/components/AssetTrendChart";
 import { useAuth } from "@clerk/nextjs";
 import confetti from "canvas-confetti"; // Magic Moment
+import { useToast } from "@/hooks/use-toast";
 
 import { WelcomeOverlay } from "@/components/onboarding/WelcomeOverlay";
 import { SmartEmptyDashboard } from "@/components/onboarding/SmartEmptyDashboard";
@@ -59,6 +61,10 @@ export function DashboardContent() {
     const [editingAsset, setEditingAsset] = useState<Asset | undefined>(undefined);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
+    const [selectedAssetForEdit, setSelectedAssetForEdit] = useState<Asset | null>(null);
+
+    const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+    const [selectedAssetForTransaction, setSelectedAssetForTransaction] = useState<Asset | null>(null);
 
     // Add Asset State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -620,8 +626,23 @@ export function DashboardContent() {
                         onEdit={handleEdit}
                         onDelete={handleDeleteClick}
                         onReorder={handleReorder}
+                        onAddTransaction={(asset) => {
+                            setSelectedAssetForTransaction(asset);
+                            setIsTransactionModalOpen(true);
+                        }}
                     />
                 </>
+            )}
+
+            {selectedAssetForTransaction && (
+                <AddTransactionModal
+                    asset={selectedAssetForTransaction}
+                    open={isTransactionModalOpen}
+                    onOpenChange={setIsTransactionModalOpen}
+                    onTransactionAdded={() => {
+                        refreshDashboardData(false); // Refresh balance
+                    }}
+                />
             )}
         </div>
     );

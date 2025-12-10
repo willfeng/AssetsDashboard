@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Landmark, TrendingUp, Bitcoin, CloudDownload, UserCog, Home, Gem } from "lucide-react";
+import { Pencil, Trash2, Landmark, TrendingUp, Bitcoin, CloudDownload, UserCog, Home, Gem, PlusCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Asset } from "@/types";
@@ -17,6 +17,7 @@ interface AssetListProps {
     onEdit: (asset: Asset) => void;
     onDelete: (id: string) => void;
     onReorder?: (assets: Asset[]) => void;
+    onAddTransaction: (asset: Asset) => void;
 }
 
 function SortableAssetItem({ asset, children }: { asset: Asset, children: React.ReactNode }) {
@@ -37,7 +38,7 @@ function SortableAssetItem({ asset, children }: { asset: Asset, children: React.
     );
 }
 
-export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProps) {
+export function AssetList({ assets, onEdit, onDelete, onReorder, onAddTransaction }: AssetListProps) {
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -68,13 +69,23 @@ export function AssetList({ assets, onEdit, onDelete, onReorder }: AssetListProp
     };
     const AssetActions = ({ asset }: { asset: Asset }) => (
         <div className="flex items-center gap-1 ml-2">
+            {!asset.integrationId && asset.type !== 'BANK' && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground/50 hover:text-green-600"
+                    onClick={() => onAddTransaction(asset)}
+                    title="Add Transaction"
+                >
+                    <PlusCircle className="h-3.5 w-3.5" />
+                </Button>
+            )}
             <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground/50 hover:text-primary"
                 onClick={() => onEdit(asset)}
-                disabled={!!asset.integrationId}
-                title={asset.integrationId ? "Synced assets cannot be edited manually" : "Edit asset"}
+                title="Edit asset"
             >
                 <Pencil className="h-3.5 w-3.5" />
             </Button>

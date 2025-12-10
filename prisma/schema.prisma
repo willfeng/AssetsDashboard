@@ -59,6 +59,32 @@ model Asset {
   lastPriceUpdated DateTime? // When was this price last fetched?
 
   snapshots AssetSnapshot[]
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  type      TransactionType // BUY, SELL, TRANSFER_IN, TRANSFER_OUT
+  
+  quantity  Float
+  pricePerUnit Float // Price at the time of transaction
+  fee       Float?   @default(0)
+  
+  date      DateTime // Transaction date
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  TRANSFER_IN
+  TRANSFER_OUT
 }
 
 model AssetSnapshot {
