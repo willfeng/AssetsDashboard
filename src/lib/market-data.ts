@@ -96,9 +96,7 @@ export const MarketDataService = {
                     period2: endDate,
                     interval: '1d' as const
                 };
-                if (!(YahooProvider as any).getHistorical) {
-                    throw new Error("Yahoo Provider does not support historical data");
-                }
+
                 const result = await (YahooProvider as any).getHistorical(symbol, queryOptions);
                 return result.map((quote: any) => ({
                     date: quote.date.toISOString().split('T')[0],

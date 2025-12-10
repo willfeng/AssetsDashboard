@@ -19,7 +19,7 @@ interface CategoryPerformanceProps {
 export default function CategoryPerformanceChart({ data, isLoading }: CategoryPerformanceProps) {
     if (isLoading) {
         return (
-            <Card className="col-span-2 h-[400px]">
+            <Card className="h-[400px]">
                 <CardHeader>
                     <div className="h-6 w-48 bg-muted rounded animate-pulse" />
                 </CardHeader>
@@ -32,7 +32,7 @@ export default function CategoryPerformanceChart({ data, isLoading }: CategoryPe
 
     if (!data || data.dates.length === 0) {
         return (
-            <Card className="col-span-2 h-[400px]">
+            <Card className="h-[400px]">
                 <CardHeader>
                     <CardTitle>Cumulative Return by Category</CardTitle>
                 </CardHeader>
@@ -52,10 +52,10 @@ export default function CategoryPerformanceChart({ data, isLoading }: CategoryPe
     }));
 
     return (
-        <Card className="col-span-2 h-[400px]">
+        <Card className="h-[400px]">
             <CardHeader>
-                <CardTitle>Cumulative Return by Category</CardTitle>
-                <p className="text-sm text-muted-foreground">Normalized performance (Base 100)</p>
+                <CardTitle>Asset Value by Category</CardTitle>
+                <p className="text-sm text-muted-foreground">Historical value of asset classes</p>
             </CardHeader>
             <CardContent>
                 <div className="h-[300px] w-full">
@@ -74,7 +74,12 @@ export default function CategoryPerformanceChart({ data, isLoading }: CategoryPe
                                 tick={{ fontSize: 12, fill: "#6B7280" }}
                                 axisLine={false}
                                 tickLine={false}
-                                width={40}
+                                width={60}
+                                tickFormatter={(value) => {
+                                    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+                                    if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
+                                    return `$${value}`;
+                                }}
                             />
                             <Tooltip
                                 contentStyle={{

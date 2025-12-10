@@ -12,6 +12,8 @@ interface MetricsData {
     sharpeRatio: number;
     volatility: number;
     sparkline: { value: number }[];
+    bestAsset?: { symbol: string | null; name: string; percent: number; value: number } | null;
+    worstAsset?: { symbol: string | null; name: string; percent: number; value: number } | null;
 }
 
 interface KeyMetricsProps {
@@ -37,74 +39,110 @@ export default function KeyMetrics({ metrics, isLoading }: KeyMetricsProps) {
 
     if (!metrics) return null;
 
-    const items = [
-        {
-            title: "Total Return",
-            value: `${metrics.totalReturn.value > 0 ? "+" : ""}${metrics.totalReturn.value}%`,
-            subValue: CurrencyService.format(metrics.totalReturn.absolute, "USD"),
-            icon: metrics.totalReturn.value >= 0 ? TrendingUp : TrendingDown,
-            color: metrics.totalReturn.value >= 0 ? "text-emerald-500" : "text-rose-500",
-            chartColor: metrics.totalReturn.value >= 0 ? "#10b981" : "#f43f5e",
-        },
-        {
-            title: "Max Drawdown",
-            value: `${metrics.maxDrawdown.value}%`,
-            subValue: metrics.maxDrawdown.date ? new Date(metrics.maxDrawdown.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "No data",
-            icon: TrendingDown,
-            color: "text-rose-500",
-            chartColor: "#f43f5e",
-        },
-        {
-            title: "Sharpe Ratio",
-            value: metrics.sharpeRatio.toFixed(2),
-            subValue: metrics.sharpeRatio > 1 ? "Excellent" : metrics.sharpeRatio > 0 ? "Good" : "Poor",
-            icon: Target,
-            color: "text-blue-500",
-            chartColor: "#3b82f6",
-        },
-        {
-            title: "Volatility",
-            value: `${metrics.volatility}%`,
-            subValue: "Annualized",
-            icon: Activity,
-            color: "text-violet-500",
-            chartColor: "#8b5cf6",
-        },
-    ];
+    const pnlValue = metrics.totalReturn.absolute;
+    const roiValue = metrics.totalReturn.value;
+    const isPositive = pnlValue >= 0;
+    const drawdown = metrics.maxDrawdown.value;
+
+
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {items.map((item, index) => (
-                <Card key={index} className="overflow-hidden relative">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start z-10 relative">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">{item.title}</p>
-                                <h3 className={cn("text-2xl font-bold mt-2", item.color)}>{item.value}</h3>
-                                <p className="text-xs text-muted-foreground mt-1">{item.subValue}</p>
-                            </div>
-                            <div className={cn("p-2 rounded-full bg-opacity-10", item.color.replace("text-", "bg-"))}>
-                                <item.icon className={cn("h-4 w-4", item.color)} />
-                            </div>
+            {/* 1. Portfolio Performance (Merged PnL + ROI) */}
+            <Card className="relative overflow-hidden border shadow-sm bg-background/40 backdrop-blur-xl hover:bg-background/60 transition-all duration-300 hover:-translate-y-1">
+                <div className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r opacity-50", isPositive ? "from-emerald-500/50 to-emerald-500/0" : "from-rose-500/50 to-rose-500/0")} />
+                <CardContent className="p-4 relative z-10">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Portfolio Performance</p>
+                        <div className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm flex items-center gap-1 border",
+                            isPositive ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600" : "bg-rose-500/10 border-rose-500/20 text-rose-600")}>
+                            {roiValue > 0 ? "+" : ""}{roiValue}%
+                            <Activity className="h-3 w-3" />
                         </div>
+                    </div>
+                    <div className="space-y-0.5">
+                        <h3 className={cn("text-2xl font-bold tracking-tight", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                            {isPositive ? "+" : ""}{CurrencyService.format(pnlValue, "USD")}
+                        </h3>
+                        <p className="text-xs text-muted-foreground font-medium">Total PnL & Return</p>
+                    </div>
+                </CardContent>
+            </Card>
 
-                        {/* Sparkline Background */}
-                        <div className="absolute bottom-0 left-0 right-0 h-12 opacity-10">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={metrics.sparkline}>
-                                    <Area
-                                        type="monotone"
-                                        dataKey="value"
-                                        stroke={item.chartColor}
-                                        fill={item.chartColor}
-                                        strokeWidth={2}
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
+            {/* 2. Max Drawdown (Risk Metric) */}
+            <Card className="relative overflow-hidden border shadow-sm bg-background/40 backdrop-blur-xl hover:bg-background/60 transition-all duration-300 hover:-translate-y-1">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500/50 to-transparent opacity-50" />
+                <CardContent className="p-4 relative z-10">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Max Drawdown</p>
+                        <div className="p-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-600 backdrop-blur-sm">
+                            <TrendingDown className="h-3.5 w-3.5" />
                         </div>
-                    </CardContent>
-                </Card>
-            ))}
+                    </div>
+                    <div className="space-y-0.5">
+                        <h3 className="text-2xl font-bold tracking-tight text-rose-600 dark:text-rose-400">
+                            -{drawdown}%
+                        </h3>
+                        <p className="text-xs text-muted-foreground font-medium">Peak-to-Trough Decline</p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* 3. Best Performer */}
+            <Card className="relative overflow-hidden border shadow-sm bg-background/40 backdrop-blur-xl hover:bg-background/60 transition-all duration-300 hover:-translate-y-1">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500/50 to-transparent opacity-50" />
+                <CardContent className="p-4 relative z-10">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Best Performer</p>
+                        <div className="p-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 backdrop-blur-sm">
+                            <Target className="h-3.5 w-3.5" />
+                        </div>
+                    </div>
+                    {metrics.bestAsset ? (
+                        <div className="space-y-0.5">
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-2xl font-bold tracking-tight text-foreground truncate max-w-[120px]" title={metrics.bestAsset.name}>
+                                    {metrics.bestAsset.symbol || metrics.bestAsset.name}
+                                </h3>
+                                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                                    {metrics.bestAsset.percent > 0 ? "+" : ""}{metrics.bestAsset.percent.toFixed(1)}%
+                                </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground font-medium truncate">{metrics.bestAsset.name}</p>
+                        </div>
+                    ) : (
+                        <div className="h-full flex items-center text-muted-foreground text-sm italic">No data</div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* 4. Worst Performer */}
+            <Card className="relative overflow-hidden border shadow-sm bg-background/40 backdrop-blur-xl hover:bg-background/60 transition-all duration-300 hover:-translate-y-1">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500/50 to-transparent opacity-50" />
+                <CardContent className="p-4 relative z-10">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Worst Performer</p>
+                        <div className="p-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-600 backdrop-blur-sm">
+                            <Zap className="h-3.5 w-3.5" />
+                        </div>
+                    </div>
+                    {metrics.worstAsset ? (
+                        <div className="space-y-0.5">
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-2xl font-bold tracking-tight text-foreground truncate max-w-[120px]" title={metrics.worstAsset.name}>
+                                    {metrics.worstAsset.symbol || metrics.worstAsset.name}
+                                </h3>
+                                <span className="text-lg font-bold text-rose-600 dark:text-rose-400">
+                                    {metrics.worstAsset.percent.toFixed(1)}%
+                                </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground font-medium truncate">{metrics.worstAsset.name}</p>
+                        </div>
+                    ) : (
+                        <div className="h-full flex items-center text-muted-foreground text-sm italic">No data</div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 }

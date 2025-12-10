@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import KeyMetrics from "@/components/KeyMetrics";
 import CategoryPerformanceChart from "@/components/CategoryPerformanceChart";
 import MonthlyPnLChart from "@/components/MonthlyPnLChart";
 import ConcentrationRisk from "@/components/ConcentrationRisk";
 import TopMovers from "@/components/TopMovers";
 import BestWorstDays from "@/components/BestWorstDays";
+import PortfolioPerformanceChart from "@/components/PortfolioPerformanceChart";
 import { Asset } from "@/types";
 import { CurrencyService } from "@/lib/currency";
 
@@ -18,9 +21,12 @@ interface MetricsData {
     volatility: number;
     bestDay: { date: string; value: number; percent: number };
     worstDay: { date: string; value: number; percent: number };
+    bestAsset?: { symbol: string | null; name: string; percent: number; value: number } | null;
+    worstAsset?: { symbol: string | null; name: string; percent: number; value: number } | null;
     longestWinStreak: number;
     longestLossStreak: number;
     sparkline: { value: number }[];
+    history: any[];
 }
 
 interface CategoryPerformanceData {
@@ -38,7 +44,7 @@ interface MonthlyPnLData {
 }
 
 export default function AnalyticsPage() {
-    const [timeRange, setTimeRange] = useState("1Y");
+    const [timeRange, setTimeRange] = useState("YTD");
     const [loading, setLoading] = useState(true);
     const [metrics, setMetrics] = useState<MetricsData | null>(null);
     const [categoryData, setCategoryData] = useState<CategoryPerformanceData | null>(null);
@@ -59,14 +65,14 @@ export default function AnalyticsPage() {
                     setMetrics(metricsData);
                 }
 
-                // 2. Fetch Category Performance
+                // 2. Fetch Category Performance (range only)
                 const catRes = await fetch(`/api/analytics/category-performance?range=${timeRange}`);
                 if (catRes.ok) {
                     const catData = await catRes.json();
                     setCategoryData(catData);
                 }
 
-                // 3. Fetch Monthly P&L
+                // 3. Fetch Monthly P&L (fixed 12 months usually)
                 const pnlRes = await fetch(`/api/analytics/monthly-pnl?months=12`);
                 if (pnlRes.ok) {
                     const pnlData = await pnlRes.json();
@@ -91,36 +97,43 @@ export default function AnalyticsPage() {
     }, [timeRange]);
 
     return (
-        <div className="p-6 space-y-8 max-w-[1600px] mx-auto">
+        <div className="p-6 space-y-6 max-w-[1600px] mx-auto pb-20">
             {/* 1. Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
                     <p className="text-muted-foreground mt-1">
-                        Comprehensive portfolio performance and risk analysis.
+                        Deep dive into your portfolio performance and risk.
                     </p>
                 </div>
-                <Tabs value={timeRange} onValueChange={setTimeRange} className="w-full md:w-auto">
-                    <TabsList>
-                        <TabsTrigger value="1W">1W</TabsTrigger>
-                        <TabsTrigger value="1M">1M</TabsTrigger>
-                        <TabsTrigger value="3M">3M</TabsTrigger>
-                        <TabsTrigger value="1Y">1Y</TabsTrigger>
-                        <TabsTrigger value="ALL">ALL</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+
+                <div className="flex items-center gap-4 flex-wrap">
+                    {/* Time Range Tabs */}
+                    <Tabs value={timeRange} onValueChange={setTimeRange} className="w-full md:w-auto">
+                        <TabsList>
+                            <TabsTrigger value="24H">24H</TabsTrigger>
+                            <TabsTrigger value="7D">7D</TabsTrigger>
+                            <TabsTrigger value="30D">30D</TabsTrigger>
+                            <TabsTrigger value="YTD">YTD</TabsTrigger>
+                            <TabsTrigger value="ALL">ALL</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
             </div>
 
-            {/* 2. Key Metrics Section */}
+            {/* 2. Key Metrics Section (Top Priority) */}
             <KeyMetrics metrics={metrics} isLoading={loading} />
 
-            {/* 3. Core Analysis Section (Split View) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 3. Hero Chart (Profit Area Chart) */}
+            <PortfolioPerformanceChart data={metrics?.history} isLoading={loading} />
+
+            {/* 4. Core Analysis Section (Split View) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <CategoryPerformanceChart data={categoryData} isLoading={loading} />
                 <MonthlyPnLChart data={monthlyPnL} isLoading={loading} />
             </div>
 
-            {/* 4. Risk & Insights Section (Grid View) */}
+            {/* 5. Risk & Insights Section (Grid View) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <ConcentrationRisk assets={assets} isLoading={loading} />
                 <TopMovers assets={assets} isLoading={loading} />

@@ -33,7 +33,9 @@ export const YahooProvider: StockDataProvider = {
     async getHistorical(symbol: string, queryOptions: any): Promise<any[]> {
         console.log(`[YahooProvider] Fetching history for ${symbol}`);
         try {
-            const yahooFinance = (await import('yahoo-finance2')).default;
+            const YahooFinance = (await import('yahoo-finance2')).default;
+            // @ts-ignore - The library types might mismatch the runtime behavior of the default export
+            const yahooFinance = new YahooFinance();
             const result = await yahooFinance.historical(symbol, queryOptions);
             return result;
         } catch (error) {
